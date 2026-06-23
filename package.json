@@ -1,0 +1,11 @@
+{
+  "name": "yggdrasil-migrator",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"API,UI\" --prefix-colors \"cyan,green\" --kill-others-on-fail \"python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

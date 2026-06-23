@@ -1,0 +1,5873 @@
+<template>
+  <div id="app">
+    <div class="global-shell">
+      <aside class="global-sidebar">
+        <div class="global-logo">
+          <img class="global-logo-image" :src="appLogoUrl" alt="Yggdrasil logo" />
+          <div>
+            <strong>YGGDRASIL</strong>
+            <small>MIGRATOR</small>
+          </div>
+        </div>
+        <nav class="global-nav">
+          <button :class="['global-nav-item', { active: activeTab === 'dashboard' }]" @click="activeTab = 'dashboard'">Dashboard</button>
+          <button :class="['global-nav-item', { active: isMigrationFlowTab }]" @click="activeTab = 'engines'">New Migration</button>
+          <button :class="['global-nav-item', { active: activeTab === 'connections' }]" @click="activeTab = 'connections'">Connections</button>
+          <button :class="['global-nav-item', { active: activeTab === 'jobs' }]" @click="activeTab = 'jobs'">Migration Jobs</button>
+          <button :class="['global-nav-item', { active: activeTab === 'templates' }]" @click="activeTab = 'templates'">Templates</button>
+          <button class="global-nav-item">Logs</button>
+          <button class="global-nav-item">Settings</button>
+        </nav>
+        <div class="global-sidebar-footer">
+          <div class="global-env">Environment: Local</div>
+          <div class="global-user">Admin User<br />admin@yggdrasil.local</div>
+        </div>
+      </aside>
+
+      <div class="global-main">
+        <header class="global-main-header">
+          <div class="global-topbar-actions global-topbar-actions-standalone">
+            <button class="global-icon-button">Dark</button>
+            <button class="global-icon-button">?</button>
+            <div class="global-avatar">A</div>
+          </div>
+
+          <section v-if="isMigrationFlowTab" class="migration-flow-header">
+            <div class="migration-flow-copy">
+              <h2>New Migration</h2>
+              <p>{{ migrationStepDescription }}</p>
+            </div>
+            <div class="wizard-stepper compact-stepper migration-flow-stepper">
+              <div v-for="item in wizardSteps" :key="`global-${item.key}`" :class="['wizard-step', item.state]">
+                <span class="wizard-step-bullet">{{ item.badge }}</span>
+                <span>{{ item.label }}</span>
+              </div>
+            </div>
+          </section>
+        </header>
+
+        <main class="content">
+      <section v-if="activeTab === 'dashboard'" class="panel">
+        <header class="dashboard-topbar">
+          <div>
+            <h2>Dashboard</h2>
+            <p>Monitor migrations, connections and data movement</p>
+          </div>
+          <button class="wizard-primary" @click="activeTab = 'connections'">New Migration</button>
+        </header>
+
+        <div class="dashboard-metrics">
+          <article class="dashboard-metric-card">
+            <p class="dashboard-label">Total Migrations</p>
+            <strong>128</strong>
+            <span>+12 this week</span>
+          </article>
+          <article class="dashboard-metric-card">
+            <p class="dashboard-label">Running Jobs</p>
+            <strong>3</strong>
+            <span>2 MongoDB -> PostgreSQL, 1 MongoDB -> MongoDB</span>
+          </article>
+          <article class="dashboard-metric-card">
+            <p class="dashboard-label">Success Rate</p>
+            <strong>96.4%</strong>
+            <span>last 30 days</span>
+          </article>
+          <article class="dashboard-metric-card">
+            <p class="dashboard-label">Records Migrated</p>
+            <strong>2.8M</strong>
+            <span>across all jobs</span>
+          </article>
+          <article class="dashboard-metric-card">
+            <p class="dashboard-label">Failed Records</p>
+            <strong>432</strong>
+            <span>138 need review</span>
+          </article>
+        </div>
+
+        <div class="dashboard-middle-grid">
+          <article class="dashboard-active-card">
+            <div class="dashboard-card-title-row">
+              <h3>Active Migration</h3>
+              <span class="wizard-status optional">Running</span>
+            </div>
+            <p class="dashboard-flow">MongoDB.accounts -> PostgreSQL.clients</p>
+            <div class="dashboard-progress-track">
+              <div class="dashboard-progress-fill" style="width: 73%"></div>
+            </div>
+            <p class="dashboard-progress-text">73%</p>
+            <div class="dashboard-kpi-grid">
+              <div><span>Processed</span><strong>91,008 / 124,392</strong></div>
+              <div><span>Success</span><strong>90,870</strong></div>
+              <div><span>Failed</span><strong>138</strong></div>
+              <div><span>Speed</span><strong>2,300 docs/min</strong></div>
+              <div><span>ETA</span><strong>14 min</strong></div>
+            </div>
+            <div class="dashboard-actions">
+              <button class="wizard-secondary" @click="activeTab = 'jobs'">View Job</button>
+              <button class="wizard-secondary">Pause</button>
+            </div>
+          </article>
+
+          <article class="dashboard-health-card">
+            <h3>Connection Health</h3>
+            <ul class="dashboard-health-list">
+              <li><span class="dot ok"></span>MongoDB Source <em>Healthy, 24ms</em></li>
+              <li><span class="dot ok"></span>PostgreSQL Target <em>Healthy, 38ms</em></li>
+              <li><span class="dot warn"></span>MongoDB Production <em>Warning, last check 12 min ago</em></li>
+              <li><span class="dot err"></span>PostgreSQL Backup <em>Offline, authentication failed</em></li>
+            </ul>
+          </article>
+        </div>
+
+        <article class="dashboard-jobs-card">
+          <div class="dashboard-card-title-row">
+            <h3>Recent Migration Jobs</h3>
+            <button class="wizard-secondary" @click="activeTab = 'jobs'">Open Jobs</button>
+          </div>
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Source</th>
+                  <th>Target</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Records</th>
+                  <th>Failed</th>
+                  <th>Duration</th>
+                  <th>Started At</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="job in dashboardRecentJobs" :key="job.job">
+                  <td>{{ job.job }}</td>
+                  <td>{{ job.source }}</td>
+                  <td>{{ job.target }}</td>
+                  <td><span :class="['wizard-status', job.statusClass]">{{ job.status }}</span></td>
+                  <td>{{ job.progress }}</td>
+                  <td>{{ job.records }}</td>
+                  <td>{{ job.failed }}</td>
+                  <td>{{ job.duration }}</td>
+                  <td>{{ job.startedAt }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <div class="dashboard-bottom-grid">
+          <article class="dashboard-issues-card">
+            <h3>Issues Requiring Attention</h3>
+            <ul>
+              <li v-for="issue in dashboardIssues" :key="issue">{{ issue }}</li>
+            </ul>
+          </article>
+
+          <article class="dashboard-actions-card">
+            <h3>Quick Actions</h3>
+            <div class="dashboard-quick-actions">
+              <button class="wizard-secondary" @click="activeTab = 'connections'">New Migration</button>
+              <button class="wizard-secondary" @click="activeTab = 'connections'">Create Connection</button>
+              <button class="wizard-secondary" @click="activeTab = 'mapping'">Run Dry Test</button>
+              <button class="wizard-secondary" @click="activeTab = 'templates'">Open Templates</button>
+              <button class="wizard-secondary" @click="activeTab = 'jobs'">View Failed Records</button>
+            </div>
+            <div class="dashboard-activity-chart">
+              <h4>Migration Activity - Last 7 days</h4>
+              <div class="dashboard-chart-bars">
+                <div v-for="day in dashboardActivity" :key="day.day" class="dashboard-chart-bar-wrap">
+                  <div class="dashboard-chart-bar">
+                    <span class="bar-ok" :style="{ height: `${day.ok}%` }"></span>
+                    <span class="bar-warn" :style="{ height: `${day.warn}%` }"></span>
+                  </div>
+                  <small>{{ day.day }}</small>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'engines'" class="panel engines-panel">
+        <header class="engines-topbar">
+          <div class="wizard-topbar-left">
+            <button class="wizard-icon-button" @click="activeTab = 'dashboard'">&larr;</button>
+            <h2>New Migration</h2>
+          </div>
+          <div class="wizard-topbar-right">
+           
+          </div>
+        </header>
+
+        <div class="engines-header">
+          <h2>Choose Database Engines</h2>
+          <p>Select where your data comes from and where it should go.</p>
+        </div>
+
+        <article class="engines-path-card">
+          <h3>Migration Path</h3>
+          <div class="engines-path-row">
+            <div class="engine-selected-card source">
+              <img
+                v-if="getPathEngineImage(selectedSourceEngine)"
+                class="engine-path-image"
+                :src="getPathEngineImage(selectedSourceEngine)"
+                :alt="`${selectedSourceEngine} image`"
+              />
+              <span v-else class="engine-brand-glyph engine-path-glyph">{{ getEngineGlyph(selectedSourceEngine) }}</span>
+              <div class="engine-card-text">
+                <span class="engine-role-badge source">Source</span>
+                <h4>{{ selectedSourceEngine }}</h4>
+                <p>{{ selectedSourceEngine === 'MongoDB' ? 'Document database' : 'Engine selected' }}</p>
+                <small>{{ selectedSourceEngine === 'MongoDB' ? 'Collections, documents, arrays and DBRef support.' : 'Selected as source engine.' }}</small>
+              </div>
+            </div>
+            <div class="engine-path-arrow">→</div>
+            <div class="engine-selected-card target">
+              <img
+                v-if="getPathEngineImage(selectedTargetEngine)"
+                class="engine-path-image"
+                :src="getPathEngineImage(selectedTargetEngine)"
+                :alt="`${selectedTargetEngine} image`"
+              />
+              <span v-else class="engine-brand-glyph engine-path-glyph">{{ getEngineGlyph(selectedTargetEngine) }}</span>
+              <div class="engine-card-text">
+                <span class="engine-role-badge target">Target</span>
+                <h4>{{ selectedTargetEngine }}</h4>
+                <p>{{ selectedTargetEngine === 'MongoDB' ? 'Document database' : 'Engine selected' }}</p>
+                <small>{{ selectedTargetEngine === 'MongoDB' ? 'Collections, documents, arrays and DBRef support.' : 'Selected as target engine.' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="engine-compatibility">
+            <div class="dashboard-card-title-row">
+              <h4>MongoDB → MongoDB Compatibility</h4>
+              <span class="wizard-status valid">Supported</span>
+            </div>
+            <ul>
+              <li>✓ ObjectId conversion available</li>
+              <li>✓ Nested object extraction available</li>
+              <li>✓ Array to JSONB transformation supported</li>
+              <li>⚠ DBRef requires manual configuration</li>
+              <li>✓ Target constraints will be validated before execution</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="engines-available-card">
+          <h3>Available Engines</h3>
+          <div class="engines-grid">
+            <article
+              v-for="engine in availableEngines"
+              :key="engine.name"
+              :class="[
+                'engine-card',
+                engine.available ? 'available' : 'disabled',
+                selectedSourceEngine === engine.name || selectedTargetEngine === engine.name ? 'selected' : ''
+              ]"
+            >
+              <div class="engine-card-head">
+                <div class="engine-brand-row">
+                  <img
+                    v-if="getEngineLogo(engine.name)"
+                    class="engine-brand-logo"
+                    :src="getEngineLogo(engine.name)"
+                    :alt="`${engine.name} logo`"
+                  />
+                  <span v-else class="engine-brand-glyph">{{ getEngineGlyph(engine.name) }}</span>
+                  <div class="engine-brand-text">
+                    <div class="engine-title-with-badge">
+                      <h4>{{ engine.name }}</h4>
+                      <span v-if="engine.name === 'Keycloak'" class="engine-badge">Keycloak to Keycloak only</span>
+                    </div>
+                  </div>
+                </div>
+                <span :class="['wizard-status', engine.available ? 'valid' : 'warn']">{{ engine.available ? 'Available' : 'Coming soon' }}</span>
+              </div>
+              <p>{{ engine.type }}</p>
+              <small>{{ engine.description }}</small>
+              <div class="engine-tags">
+                <span v-for="feature in engine.features" :key="feature">{{ feature }}</span>
+              </div>
+              <div class="engine-actions">
+                <button
+                  :class="['wizard-secondary', 'engine-action-button', 'source', { active: selectedSourceEngine === engine.name }]"
+                  :disabled="!engine.selectable"
+                  :aria-pressed="selectedSourceEngine === engine.name"
+                  @click="setSourceEngine(engine.name)"
+                >
+                  Set as Source
+                </button>
+                <button
+                  :class="['wizard-secondary', 'engine-action-button', 'target', { active: selectedTargetEngine === engine.name }]"
+                  :disabled="!engine.selectable"
+                  :aria-pressed="selectedTargetEngine === engine.name"
+                  @click="setTargetEngine(engine.name)"
+                >
+                  Set as Target
+                </button>
+              </div>
+            </article>
+          </div>
+        </article>
+
+        <footer class="wizard-actions">
+          <div>
+            <button class="wizard-secondary" @click="activeTab = 'dashboard'">Cancel</button>
+          </div>
+          <div>
+            <button class="wizard-primary" :disabled="!canContinueFromEngines" @click="activeTab = 'connections'">Continue</button>
+          </div>
+        </footer>
+      </section>
+
+      <section v-else-if="activeTab === 'connections'" class="panel">
+        <div class="connections-header-row">
+          <h2>Connections</h2>
+          <div class="migration-mode-control">
+            <span class="migration-mode-text">Modo de Migração</span>
+            <div class="migration-mode-toggle-row">
+              <span :class="['migration-mode-option', { active: migrationMode === 'simple' }]">Simples</span>
+              <button
+                type="button"
+                :class="['auth-switch', 'migration-mode-switch', { 'is-on': migrationMode === 'custom' }]"
+                aria-label="Alternar modo de migração"
+                :aria-pressed="migrationMode === 'custom'"
+                @click="migrationMode = migrationMode === 'simple' ? 'custom' : 'simple'"
+              >
+                <span class="auth-switch-track"></span>
+              </button>
+              <span :class="['migration-mode-option', { active: migrationMode === 'custom' }]">Personalizada</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="card form-card">
+            <h3>Source {{ selectedSourceEngine }}</h3>
+            <template v-if="selectedSourceEngine === 'MongoDB'">
+            <label class="connection-field-label">
+              <span class="connection-label-row">
+                <span>Connection string</span>
+                <button
+                  type="button"
+                  :class="['auth-switch', { 'is-on': sourceConnection.authEnabled }]"
+                  aria-label="Enable auth for source"
+                  :aria-pressed="sourceConnection.authEnabled"
+                  @click="sourceConnection.authEnabled = !sourceConnection.authEnabled"
+                >
+                  <span class="auth-switch-label">Enable authentication</span>
+                  <span class="auth-switch-track"></span>
+                </button>
+              </span>
+              <input v-model="sourceConnection.connectionString" type="text" placeholder="mongodb://localhost:27017" />
+            </label>
+            <label v-if="sourceConnection.authEnabled">
+              Username
+              <input v-model="sourceConnection.username" type="text" placeholder="root" autocomplete="off" />
+            </label>
+            <label v-if="sourceConnection.authEnabled">
+              Password
+              <input v-model="sourceConnection.password" type="password" placeholder="••••••••" autocomplete="new-password" />
+            </label>
+            <div class="connection-action-row">
+              <button class="primary-button" @click="testSourceConnection" :disabled="sourceConnection.testing">
+                {{ sourceConnection.testing ? 'Testando...' : 'Conectar' }}
+              </button>
+              <div v-if="sourceResult?.success" class="status-chip success connection-inline-status">
+                {{ sourceResult.message }}
+              </div>
+            </div>
+            <div v-if="sourceResult && !sourceResult.success" class="status-chip error">
+              {{ sourceResult.message }}
+            </div>
+
+            <label v-if="migrationMode === 'simple' && sourceDatabases.length > 0" style="margin-top:12px">
+              Database
+              <select v-model="sourceConnection.database" class="form-select">
+                <option value="">-- Selecione --</option>
+                <option v-for="db in sourceDatabases" :key="db" :value="db">{{ db }}</option>
+              </select>
+            </label>
+            <button v-if="migrationMode === 'simple' && sourceResult && sourceResult.success" class="primary-button secondary" @click="loadSourceDatabases" :disabled="sourceDatabasesLoading" style="margin-top:6px">
+              {{ sourceDatabasesLoading ? 'Carregando...' : 'Carregar Bancos de Dados' }}
+            </button>
+
+            <label v-if="migrationMode === 'simple' && sourceCollections.length > 0" style="margin-top:12px">
+              Collection
+              <select v-model="sourceConnection.collection" class="form-select">
+                <option value="">-- Selecione --</option>
+                <option v-for="col in sourceCollections" :key="col" :value="col">{{ col }}</option>
+              </select>
+            </label>
+            <button v-if="migrationMode === 'simple' && sourceConnection.database" class="primary-button secondary" @click="loadSourceCollections" :disabled="sourceCollectionsLoading" style="margin-top:6px">
+              {{ sourceCollectionsLoading ? 'Carregando...' : 'Carregar Coleções' }}
+            </button>
+
+            <button v-if="sourceConnection.collection" class="primary-button" style="margin-top:12px" @click="viewSourceSample" :disabled="sourceSamplesLoading">
+              {{ sourceSamplesLoading ? 'Carregando...' : 'Visualizar Dados' }}
+            </button>
+
+            <div v-if="sourceSamples.length" class="samples-list" style="margin-top:12px">
+              <h4>Documentos (primeiros 10)</h4>
+              <label class="preview-merge-toggle" style="margin-top: 8px; margin-bottom: 8px;">
+                <input v-model="useSelectedBaseDocument" type="checkbox" />
+                Usar documento-base para mapear campos (opcional)
+              </label>
+              <div class="samples-container">
+                <div v-for="(item, idx) in sourceSamples" :key="idx" class="sample-item">
+                  <label v-if="useSelectedBaseDocument && getDocumentId(item)" class="wizard-rule-mode-toggle-label" style="margin-bottom: 8px;">
+                    <input
+                      type="radio"
+                      name="source-base-document"
+                      :checked="selectedSourceBaseDocumentId === getDocumentId(item)"
+                      @change="selectSourceBaseDocument(item)"
+                    />
+                    <span>Documento base #{{ idx + 1 }}</span>
+                  </label>
+                  <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+                </div>
+              </div>
+            </div>
+            </template>
+            <template v-else-if="selectedSourceEngine === 'Keycloak'">
+              <label>
+                Base URL
+                <input v-model="sourceKeycloakConnection.baseUrl" type="text" placeholder="http://localhost:8080" />
+              </label>
+              <label>
+                Realm
+                <input v-model="sourceKeycloakConnection.realm" type="text" placeholder="master" />
+              </label>
+              <label>
+                Modo de autenticação
+                <select v-model="sourceKeycloakConnection.authMode" class="form-select">
+                  <option value="client_credentials">Client Credentials</option>
+                  <option value="password">Username e Senha</option>
+                </select>
+              </label>
+              <label>
+                Client ID
+                <input v-model="sourceKeycloakConnection.clientId" type="text" placeholder="admin-cli" />
+              </label>
+              <label v-if="sourceKeycloakConnection.authMode === 'client_credentials'">
+                Client Secret
+                <input v-model="sourceKeycloakConnection.clientSecret" type="password" placeholder="********" />
+              </label>
+              <label v-else>
+                Username
+                <input v-model="sourceKeycloakConnection.username" type="text" placeholder="admin" />
+              </label>
+              <label v-if="sourceKeycloakConnection.authMode === 'password'">
+                Password
+                <input v-model="sourceKeycloakConnection.password" type="password" placeholder="********" />
+              </label>
+              <div class="connection-action-row">
+                <button class="primary-button" @click="testSourceKeycloakConnection" :disabled="sourceKeycloakConnection.testing">
+                  {{ sourceKeycloakConnection.testing ? 'Testando...' : 'Conectar' }}
+                </button>
+                <button class="primary-button secondary" @click="loadSourceKeycloakUsers" :disabled="!sourceKeycloakConnection.connected || sourceSamplesLoading">
+                  {{ sourceSamplesLoading ? 'Carregando...' : 'Carregar usuários' }}
+                </button>
+              </div>
+              <div v-if="sourceKeycloakConnection.message" :class="['status-chip', sourceKeycloakConnection.connected ? 'success' : 'error']">
+                {{ sourceKeycloakConnection.message }}
+              </div>
+
+              <div v-if="sourceSamples.length" class="samples-list" style="margin-top:12px">
+                <h4>Usuários (primeiros 10)</h4>
+                <div class="samples-container">
+                  <div v-for="(item, idx) in sourceSamples" :key="idx" class="sample-item">
+                    <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <p class="connections-engine-note">Campos de conexão para {{ selectedSourceEngine }} serão exibidos conforme o banco selecionado.</p>
+              <label>
+                Host
+                <input v-model="sourceAltConnection.host" type="text" placeholder="localhost" />
+              </label>
+              <label>
+                Port
+                <input v-model="sourceAltConnection.port" type="text" placeholder="5432" />
+              </label>
+              <label>
+                Database
+                <input v-model="sourceAltConnection.database" type="text" placeholder="source_db" />
+              </label>
+              <label>
+                Username
+                <input v-model="sourceAltConnection.username" type="text" placeholder="user" />
+              </label>
+              <label>
+                Password
+                <input v-model="sourceAltConnection.password" type="password" placeholder="••••••••" />
+              </label>
+              <div class="status-chip warn">Conector para {{ selectedSourceEngine }} será habilitado em uma próxima entrega.</div>
+            </template>
+          </div>
+
+          <div class="card form-card">
+            <h3>Destination {{ selectedTargetEngine }}</h3>
+            <template v-if="selectedTargetEngine === 'MongoDB'">
+            <label class="connection-field-label">
+              <span class="connection-label-row">
+                <span>Connection string</span>
+                <button
+                  type="button"
+                  :class="['auth-switch', { 'is-on': destinationConnection.authEnabled }]"
+                  aria-label="Enable auth for destination"
+                  :aria-pressed="destinationConnection.authEnabled"
+                  @click="destinationConnection.authEnabled = !destinationConnection.authEnabled"
+                >
+                  <span class="auth-switch-label">Enable authentication</span>
+                  <span class="auth-switch-track"></span>
+                </button>
+              </span>
+              <input v-model="destinationConnection.connectionString" type="text" placeholder="mongodb://localhost:27017" />
+            </label>
+            <label v-if="destinationConnection.authEnabled">
+              Username
+              <input v-model="destinationConnection.username" type="text" placeholder="root" autocomplete="off" />
+            </label>
+            <label v-if="destinationConnection.authEnabled">
+              Password
+              <input v-model="destinationConnection.password" type="password" placeholder="••••••••" autocomplete="new-password" />
+            </label>
+            <label v-if="destinationConnection.authEnabled">
+              Auth source
+              <input v-model="destinationConnection.authSource" type="text" placeholder="admin" />
+            </label>
+            <div class="connection-action-row">
+              <button class="primary-button" @click="testDestinationConnection" :disabled="destinationConnection.testing">
+                {{ destinationConnection.testing ? 'Testando...' : 'Conectar' }}
+              </button>
+              <div v-if="destinationResult?.success" class="status-chip success connection-inline-status">
+                {{ destinationResult.message }}
+              </div>
+            </div>
+            <div v-if="destinationResult && !destinationResult.success" :class="['status-chip', 'error']">
+              {{ destinationResult.message }}
+            </div>
+
+            <label v-if="migrationMode === 'simple' && destinationDatabases.length > 0" style="margin-top:12px">
+              Database
+              <select v-model="destinationConnection.database" class="form-select">
+                <option value="">-- Selecione --</option>
+                <option v-for="db in destinationDatabases" :key="db" :value="db">{{ db }}</option>
+              </select>
+            </label>
+            <button v-if="migrationMode === 'simple' && destinationResult && destinationResult.success" class="primary-button secondary" @click="loadDestinationDatabases" :disabled="destinationDatabasesLoading" style="margin-top:6px">
+              {{ destinationDatabasesLoading ? 'Carregando...' : 'Carregar Bancos de Dados' }}
+            </button>
+
+            <label v-if="migrationMode === 'simple' && destinationCollections.length > 0" style="margin-top:12px">
+              Collection
+              <select v-model="destinationConnection.collection" class="form-select">
+                <option value="">-- Selecione --</option>
+                <option v-for="col in destinationCollections" :key="col" :value="col">{{ col }}</option>
+              </select>
+            </label>
+            <button v-if="migrationMode === 'simple' && destinationConnection.database" class="primary-button secondary" @click="loadDestinationCollections" :disabled="destinationCollectionsLoading" style="margin-top:6px">
+              {{ destinationCollectionsLoading ? 'Carregando...' : 'Carregar Coleções' }}
+            </button>
+
+            <button v-if="destinationConnection.collection" class="primary-button" style="margin-top:12px" @click="viewDestinationSample" :disabled="destinationSamplesLoading">
+              {{ destinationSamplesLoading ? 'Carregando...' : 'Visualizar Dados' }}
+            </button>
+
+            <div v-if="destinationSamples.length" class="samples-list" style="margin-top:12px">
+              <h4>Documentos (primeiros 10)</h4>
+              <div class="samples-container">
+                <div v-for="(item, idx) in destinationSamples" :key="idx" class="sample-item">
+                  <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+                </div>
+              </div>
+            </div>
+            </template>
+            <template v-else-if="selectedTargetEngine === 'Keycloak'">
+              <label>
+                Base URL
+                <input v-model="destinationKeycloakConnection.baseUrl" type="text" placeholder="http://localhost:8080" />
+              </label>
+              <label>
+                Realm
+                <input v-model="destinationKeycloakConnection.realm" type="text" placeholder="master" />
+              </label>
+              <label>
+                Modo de autenticação
+                <select v-model="destinationKeycloakConnection.authMode" class="form-select">
+                  <option value="client_credentials">Client Credentials</option>
+                  <option value="password">Username e Senha</option>
+                </select>
+              </label>
+              <label>
+                Client ID
+                <input v-model="destinationKeycloakConnection.clientId" type="text" placeholder="admin-cli" />
+              </label>
+              <label v-if="destinationKeycloakConnection.authMode === 'client_credentials'">
+                Client Secret
+                <input v-model="destinationKeycloakConnection.clientSecret" type="password" placeholder="********" />
+              </label>
+              <label v-else>
+                Username
+                <input v-model="destinationKeycloakConnection.username" type="text" placeholder="admin" />
+              </label>
+              <label v-if="destinationKeycloakConnection.authMode === 'password'">
+                Password
+                <input v-model="destinationKeycloakConnection.password" type="password" placeholder="********" />
+              </label>
+              <div class="connection-action-row">
+                <button class="primary-button" @click="testDestinationKeycloakConnection" :disabled="destinationKeycloakConnection.testing">
+                  {{ destinationKeycloakConnection.testing ? 'Testando...' : 'Conectar' }}
+                </button>
+              </div>
+              <div v-if="destinationKeycloakConnection.message" :class="['status-chip', destinationKeycloakConnection.connected ? 'success' : 'error']">
+                {{ destinationKeycloakConnection.message }}
+              </div>
+            </template>
+            <template v-else>
+              <p class="connections-engine-note">Campos de conexão para {{ selectedTargetEngine }} serão exibidos conforme o banco selecionado.</p>
+              <label>
+                Host
+                <input v-model="destinationAltConnection.host" type="text" placeholder="localhost" />
+              </label>
+              <label>
+                Port
+                <input v-model="destinationAltConnection.port" type="text" placeholder="5432" />
+              </label>
+              <label>
+                Database
+                <input v-model="destinationAltConnection.database" type="text" placeholder="target_db" />
+              </label>
+              <label>
+                Username
+                <input v-model="destinationAltConnection.username" type="text" placeholder="user" />
+              </label>
+              <label>
+                Password
+                <input v-model="destinationAltConnection.password" type="password" placeholder="••••••••" />
+              </label>
+              <div class="status-chip warn">Conector para {{ selectedTargetEngine }} será habilitado em uma próxima entrega.</div>
+            </template>
+          </div>
+        </div>
+
+        <div class="stage-nav" style="margin-top: 16px">
+          <button class="primary-button" :disabled="!canContinueFromConnections" @click="activeTab = 'mapping'">
+            Mapear dados
+          </button>
+        </div>
+        <p v-if="!canContinueFromConnections" class="connections-next-hint">
+          Selecione os bancos Source e Target para avancar para a proxima etapa.
+        </p>
+      </section>
+
+      <section v-else-if="activeTab === 'mapping'" class="panel wizard-panel">
+        <div class="wizard-shell">
+          <div class="wizard-main">
+            <div class="wizard-header">
+              <div>
+                <h1>Field Mapping &amp; Transformation</h1>
+                <p>Define how data from the source will be mapped and transformed to the target.</p>
+                <div v-if="selectedSourceEngine === 'Keycloak' && selectedTargetEngine === 'Keycloak'" style="margin-top: 10px; max-width: 360px;">
+                  <label>
+                    Campo de origem para username no destino
+                    <select v-model="keycloakUsernameSourceField" class="form-select" style="margin-top: 6px;">
+                      <option v-for="field in sourceFieldPaths" :key="`kc-username-${field}`" :value="field">{{ field }}</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="wizard-connections">
+                <div class="wizard-conn-card">
+                  <small>Source</small>
+                  <div class="wizard-conn-card-header">
+                    <img
+                      v-if="getPathEngineImage(selectedSourceEngine)"
+                      class="wizard-conn-logo"
+                      :src="getPathEngineImage(selectedSourceEngine)"
+                      :alt="`${selectedSourceEngine} logo`"
+                    />
+                    <span v-else class="engine-brand-glyph wizard-conn-glyph">{{ getEngineGlyph(selectedSourceEngine) }}</span>
+                    <strong>{{ selectedSourceEngine }}</strong>
+                  </div>
+                  <span>{{ sourceConnection.database || 'source_db' }}.{{ sourceConnection.collection || 'accounts' }}</span>
+                </div>
+                <span class="wizard-conn-arrow">&rarr;</span>
+                <div class="wizard-conn-card target">
+                  <small>Target</small>
+                  <div class="wizard-conn-card-header">
+                    <img
+                      v-if="getPathEngineImage(selectedTargetEngine)"
+                      class="wizard-conn-logo"
+                      :src="getPathEngineImage(selectedTargetEngine)"
+                      :alt="`${selectedTargetEngine} logo`"
+                    />
+                    <span v-else class="engine-brand-glyph wizard-conn-glyph">{{ getEngineGlyph(selectedTargetEngine) }}</span>
+                    <strong>{{ selectedTargetEngine }}</strong>
+                  </div>
+                  <span>{{ destinationConnection.database || 'target_db' }}.{{ destinationConnection.collection || 'clients' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-upper-grid">
+              <article class="wizard-card source-panel">
+                <header>
+                  <h3>Source Fields</h3>
+                  <input class="wizard-search" placeholder="Search source fields..." />
+                </header>
+                <div class="wizard-field-list">
+                  <div v-for="field in sourceFieldTree" :key="field.path" class="wizard-field-row" :style="{ paddingLeft: `${field.depth * 14 + 8}px` }">
+                    <span class="wizard-field-name">{{ field.path }}</span>
+                    <span :class="['wizard-type-pill', field.typeClass]">{{ field.type }}</span>
+                  </div>
+                </div>
+                <button class="wizard-secondary" @click="viewSourceSample">Refresh Fields</button>
+              </article>
+
+              <article class="wizard-card mapping-table-panel">
+                <header class="wizard-table-header">
+                  <h3>Mapping Rules ({{ mappingTableRows.length }})</h3>
+                  <div>
+                    <button class="wizard-secondary" @click="syncMappingsFromSamples">Auto Map</button>
+                    <button class="wizard-secondary" @click="openAddRuleModal">Add Rule</button>
+                  </div>
+                </header>
+                <div class="wizard-table-wrap">
+                  <table class="wizard-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Source Field</th>
+                        <th>Target Field</th>
+                        <th>Type</th>
+                        <th>Transform</th>
+                        <th>Required</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in mappingTableRows" :key="row.model.id">
+                        <td>{{ row.index }}</td>
+                        <td>
+                          <template v-if="row.model.ruleType === 'concat'">
+                            <span class="wizard-inline-code">{{ row.model.concatLeftField }} + {{ row.model.concatRightField }}</span>
+                          </template>
+                          <template v-else-if="row.model.noSource">
+                            <span class="wizard-inline-code">Nao existe no source</span>
+                          </template>
+                          <select v-else v-model="row.model.valueFromField" class="wizard-select">
+                            <option v-for="field in sourceFieldPaths" :key="field" :value="field">{{ field }}</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input v-model="row.model.targetField" class="wizard-select" placeholder="target field" />
+                        </td>
+                        <td>{{ row.typeLabel }}</td>
+                        <td>{{ row.transform }}</td>
+                        <td>{{ row.required ? 'required' : 'optional' }}</td>
+                        <td><span :class="['wizard-status', row.statusClass]">{{ row.status }}</span></td>
+                        <td>
+                          <div class="wizard-row-actions">
+                            <button class="wizard-action-icon" :disabled="row.isFirst" @click="moveMappingRule(row.index - 1, -1)" title="Mover para cima">↑</button>
+                            <button class="wizard-action-icon" :disabled="row.isLast" @click="moveMappingRule(row.index - 1, 1)" title="Mover para baixo">↓</button>
+                            <button class="wizard-action-icon" @click="openDefaultValueModal(row.model)" title="Set default value">🧷</button>
+                            <button class="wizard-action-icon" @click="openDbRefModal(row.model)" title="Configure DBRef">🔗</button>
+                            <button class="wizard-remove-button" @click="removeRule(row.model)" title="Excluir campo">🗑</button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+
+              <article class="wizard-card target-panel">
+                <header>
+                  <h3>Target Fields</h3>
+                  <input class="wizard-search" placeholder="Search target fields..." />
+                </header>
+                <div class="wizard-field-list">
+                  <div v-for="field in targetFieldList" :key="field.path" class="wizard-field-row">
+                    <span class="wizard-field-name">{{ field.path }}</span>
+                    <span :class="['wizard-type-pill', field.typeClass]">{{ field.type }}</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div class="wizard-lower-grid">
+              <article class="wizard-card code-panel">
+                <h3>Source Document (Sample)</h3>
+                <pre class="wizard-code"><code><span v-for="(line, idx) in sourceCodeLines" :key="`src-${idx}`"><span class="ln">{{ idx + 1 }}</span>{{ line }}
+</span></code></pre>
+              </article>
+              <article class="wizard-card code-panel">
+                <h3>Transformed Output (Sample)</h3>
+                <pre class="wizard-code"><code><span v-for="(line, idx) in mappedCodeLines" :key="`map-${idx}`"><span class="ln">{{ idx + 1 }}</span>{{ line }}
+</span></code></pre>
+              </article>
+              <article class="wizard-card validation-panel">
+                <h3>Mapping Validation</h3>
+                <ul class="wizard-checklist">
+                  <li>✓ {{ mappedRequiredCount }} required fields mapped</li>
+                  <li>✓ {{ optionalUnmappedCount }} optional fields unmapped</li>
+                  <li v-if="hasDbRefWarning">⚠ 1 DBRef field needs resolution</li>
+                  <li v-if="hasDbRefWarning">⚠ Company reference collection not selected</li>
+                  <li v-if="hasDefaultValueWarning">⚠ 1 default value is enabled but empty</li>
+                  <li>✓ No incompatible types found</li>
+                  <li>✓ Ready to run</li>
+                </ul>
+              </article>
+            </div>
+
+            <footer class="wizard-actions">
+              <div>
+                <button class="wizard-secondary" @click="activeTab = 'connections'">Back</button>
+                <button class="wizard-secondary" @click="openTemplatesForCurrentMigration">Save as Template</button>
+              </div>
+              <div>
+                <button class="wizard-secondary" @click="mapData">Validate Mapping</button>
+                <button class="wizard-primary" @click="activeTab = 'preview'">Continue</button>
+              </div>
+            </footer>
+
+            <div v-if="showAddRuleModal" class="wizard-modal-backdrop" @click.self="closeAddRuleModal">
+              <div class="wizard-modal">
+                <h3>Add Rule</h3>
+                <p>Create a new target field from source data, concatenation, or as a fixed-value field with no source reference.</p>
+
+                <label class="wizard-modal-label">Rule Type</label>
+                <div class="wizard-rule-mode-toggle">
+                  <label><input type="radio" value="new" v-model="addRuleMode" /> New field from existing source</label>
+                  <label><input type="radio" value="concat" v-model="addRuleMode" /> Concatenate two source fields</label>
+                </div>
+
+                <template v-if="addRuleMode === 'new'">
+                  <label class="wizard-rule-mode-toggle-label">
+                    <input type="checkbox" v-model="addRuleNoSource" />
+                    <span>Nao existe no source (campo novo)</span>
+                  </label>
+
+                  <template v-if="addRuleNoSource">
+                    <label class="wizard-modal-label">Valor padrao (obrigatorio)</label>
+                    <input v-model="addRuleNoSourceDefaultRaw" class="wizard-select" placeholder="ex: ativo | 10 | true | JSON" />
+                    <p class="connections-next-hint">Esse campo sera enviado como manualMapping, sem referencia no source.</p>
+                  </template>
+
+                  <template v-else>
+                  <label class="wizard-modal-label">Source field</label>
+                  <select v-model="addRuleSourceField" class="wizard-select">
+                    <option v-for="field in sourceFieldPaths" :key="`new-${field}`" :value="field">{{ field }}</option>
+                  </select>
+                  </template>
+                </template>
+
+                <template v-else>
+                  <label class="wizard-modal-label">Concat field 1</label>
+                  <select v-model="addRuleConcatLeft" class="wizard-select">
+                    <option v-for="field in sourceFieldPaths" :key="`left-${field}`" :value="field">{{ field }}</option>
+                  </select>
+
+                  <label class="wizard-modal-label">Concat field 2</label>
+                  <select v-model="addRuleConcatRight" class="wizard-select">
+                    <option v-for="field in sourceFieldPaths" :key="`right-${field}`" :value="field">{{ field }}</option>
+                  </select>
+
+                  <label class="wizard-modal-label">Separator</label>
+                  <input v-model="addRuleConcatSeparator" class="wizard-select" placeholder=" " />
+                </template>
+
+                <label class="wizard-modal-label">Target field name</label>
+                <input v-model="addRuleTargetField" class="wizard-select" placeholder="ex: full_name" />
+
+                <p v-if="addRuleError" class="wizard-modal-error">{{ addRuleError }}</p>
+
+                <div class="wizard-modal-actions">
+                  <button class="wizard-secondary" @click="closeAddRuleModal">Cancel</button>
+                  <button class="wizard-primary" @click="submitAddRule">Add</button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="showDbRefModal" class="wizard-modal-backdrop" @click.self="closeDbRefModal">
+              <div class="wizard-modal">
+                <h3>Configure DBRef</h3>
+                <p>Use this rule to reference an ID from another collection.</p>
+
+                <label class="wizard-modal-label">Enable DBRef for this rule</label>
+                <label class="wizard-rule-mode-toggle-label">
+                  <input type="checkbox" v-model="dbRefEnabledDraft" />
+                  <span>Enable DBRef reference</span>
+                </label>
+
+                <label class="wizard-modal-label">Target field</label>
+                <input class="wizard-select" :value="dbRefEditingRule?.targetField || ''" disabled />
+
+                <label class="wizard-modal-label">Reference collection</label>
+                <input v-model="dbRefCollectionDraft" class="wizard-select" placeholder="ex: companies" :disabled="!dbRefEnabledDraft" />
+
+                <label class="wizard-modal-label">Reference field</label>
+                <input v-model="dbRefForeignFieldDraft" class="wizard-select" placeholder="_id" :disabled="!dbRefEnabledDraft" />
+
+                <p v-if="dbRefError" class="wizard-modal-error">{{ dbRefError }}</p>
+
+                <div class="wizard-modal-actions">
+                  <button class="wizard-secondary" @click="closeDbRefModal">Cancel</button>
+                  <button class="wizard-primary" @click="saveDbRefRule">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="showDefaultValueModal" class="wizard-modal-backdrop" @click.self="closeDefaultValueModal">
+              <div class="wizard-modal">
+                <h3>Default Value</h3>
+                <p>Set a fixed value to be applied to this target field in all migrated records.</p>
+
+                <label class="wizard-modal-label">Enable default value for this rule</label>
+                <label class="wizard-rule-mode-toggle-label">
+                  <input type="checkbox" v-model="defaultValueEnabledDraft" />
+                  <span>Enable fixed value</span>
+                </label>
+
+                <label class="wizard-modal-label">Target field</label>
+                <input class="wizard-select" :value="defaultValueEditingRule?.targetField || ''" disabled />
+
+                <label class="wizard-modal-label">Default value (raw text)</label>
+                <input
+                  v-model="defaultValueRawDraft"
+                  class="wizard-select"
+                  :disabled="!defaultValueEnabledDraft"
+                  placeholder="ex: active | 10 | true | JSON object"
+                />
+
+                <p v-if="defaultValueError" class="wizard-modal-error">{{ defaultValueError }}</p>
+
+                <div class="wizard-modal-actions">
+                  <button class="wizard-secondary" @click="closeDefaultValueModal">Cancel</button>
+                  <button class="wizard-primary" @click="saveDefaultValueRule">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'preview'" class="panel preview-panel">
+        <div class="preview-header preview-header-enterprise">
+          <div>
+            <h2>Review &amp; Job</h2>
+            <p>Visão lado a lado do documento de origem e do resultado após o mapeamento.</p>
+          </div>
+          <div class="wizard-connections">
+            <div class="wizard-conn-card">
+              <small>Source</small>
+              <strong>MongoDB</strong>
+              <span>{{ sourceConnection.database || 'source_db' }}.{{ sourceConnection.collection || 'accounts' }}</span>
+            </div>
+            <span class="wizard-conn-arrow">&rarr;</span>
+            <div class="wizard-conn-card target">
+              <small>Target</small>
+              <strong>MongoDB</strong>
+              <span>{{ destinationConnection.database || 'target_db' }}.{{ destinationConnection.collection || 'clients' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-stage">
+          <div class="preview-flow">
+            <article class="preview-card source">
+              <div class="preview-card-badge">Origem</div>
+              <h3>Collection 1</h3>
+              <div class="preview-field-list">
+                <div v-for="field in previewSourceFields" :key="field.path" class="preview-field-row source-row">
+                  <span class="preview-field-name">{{ field.path }}</span>
+                  <span class="preview-field-value">{{ field.value }}</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="preview-card target">
+              <div class="preview-card-badge success">Destino após mapeamento</div>
+              <h3>Collection 2</h3>
+              <div class="preview-field-list">
+                <div
+                  v-for="field in previewMappedFields"
+                  :key="field.path"
+                  :class="['preview-field-row', field.mode === 'manual' ? 'manual-row' : 'mapped-row']"
+                >
+                  <div class="preview-field-meta">
+                    <span class="preview-field-name">{{ field.path }}</span>
+                    <span :class="['preview-field-tag', field.mode === 'manual' ? 'manual' : 'mapped']">
+                      {{ field.mode === 'manual' ? 'Manual' : 'Equivalente' }}
+                    </span>
+                  </div>
+                  <span class="preview-field-value">{{ field.value }}</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="wizard-card preview-actions">
+            <h3>{{ selectedTargetEngine === 'Keycloak' ? 'Migrar para o Keycloak de destino' : 'Inserir no Mongo de destino' }}</h3>
+            <p>{{ selectedTargetEngine === 'Keycloak' ? 'Use o mapeamento atual para migrar 1 ou todos os usuários da origem.' : 'Use o mapeamento atual para inserir 1 ou todos os documentos da origem.' }}</p>
+            <p class="preview-warning-text">
+              O preview mostra uma amostra. Ao escolher "Inserir todos", cada documento da collection de origem sera processado separadamente.
+            </p>
+            <div class="preview-actions-row">
+              <label>
+                Quantidade
+                <select v-model="insertMode" class="form-select">
+                  <option value="one">Inserir 1 documento</option>
+                  <option value="all">Inserir todos os documentos</option>
+                </select>
+              </label>
+              <label v-if="hasStarredsArray" class="preview-merge-toggle">
+                <input v-model="extractStarredsEnabled" type="checkbox" />
+                Extrair somente starreds.starred = true (Favorites)
+              </label>
+              <label class="preview-merge-toggle">
+                <input v-model="mergeDocumentsEnabled" type="checkbox" />
+                Mesclar documentos por chave
+              </label>
+              <label v-if="mergeDocumentsEnabled">
+                Campo de mesclagem
+                <select v-model="mergeByField" class="form-select">
+                  <option value="">-- Selecione --</option>
+                  <option v-for="field in mergeFieldOptions" :key="field" :value="field">{{ field }}</option>
+                </select>
+              </label>
+              <button class="wizard-primary" @click="createInsertJob" :disabled="createJobLoading || !mappingRows.length">
+                {{ createJobLoading ? 'Criando job...' : 'Inserir no destino' }}
+              </button>
+            </div>
+            <div v-if="createJobError" class="status-chip error">{{ createJobError }}</div>
+            <div class="wizard-actions preview-footer-actions">
+              <div>
+                <button class="wizard-secondary" @click="activeTab = 'mapping'">Voltar ao mapeamento</button>
+              </div>
+              <div>
+                <button class="wizard-secondary" @click="loadJobs(true)">Atualizar Jobs</button>
+                <button class="wizard-primary" @click="activeTab = 'jobs'">Avancar para Jobs</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'jobs'" class="panel">
+        <div class="jobs-header">
+          <h2>Jobs</h2>
+          <div class="jobs-controls">
+            <select v-model="jobsSortBy" class="form-select">
+              <option value="date_desc">Mais recentes primeiro</option>
+              <option value="date_asc">Mais antigos primeiro</option>
+            </select>
+            <button class="primary-button secondary" @click="loadJobs(true)" :disabled="jobsLoading">
+              {{ jobsLoading ? 'Recarregando...' : 'Recarregar agora' }}
+            </button>
+          </div>
+        </div>
+        <div v-if="jobsLoading" class="card">
+          <p>Carregando jobs...</p>
+        </div>
+        <div v-else-if="jobs.length === 0" class="card">
+          <p>Nenhum job criado ainda.</p>
+        </div>
+        <div v-else class="jobs-grid">
+          <article v-for="job in jobsPaginated" :key="job.jobId" class="card job-card">
+            <div class="job-header">
+              <h3>Job #{{ job.jobId }}</h3>
+              <div class="job-header-actions">
+                <span :class="['job-status', normalizeJobStatus(job.status)]">{{ statusLabel(job.status) }}</span>
+                <button class="wizard-secondary job-rerun-button" :disabled="!job.canRerun || rerunJobLoadingId === job.jobId" @click="rerunJob(job.jobId)">
+                  {{ rerunJobLoadingId === job.jobId ? 'Re-running...' : 'Re-run' }}
+                </button>
+                <button class="wizard-secondary job-delete-button" :disabled="deleteJobLoadingId === job.jobId" @click="deleteJob(job.jobId)">
+                  {{ deleteJobLoadingId === job.jobId ? 'Removing...' : 'Remove' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="job-progress-track">
+              <div class="job-progress-fill" :style="{ width: `${job.progress || 0}%` }"></div>
+            </div>
+            <p class="job-progress-text">{{ job.progress || 0 }}%</p>
+
+            <div class="job-steps">
+              <div v-for="stage in JOB_STAGES" :key="`${job.jobId}-${stage}`" :class="['job-step', stageState(job, stage)]">
+                <span class="job-step-label">{{ stageLabel(stage) }}</span>
+                <span v-if="stageState(job, stage) === 'active'" class="job-spinner"></span>
+                <span v-else-if="stageState(job, stage) === 'done'" class="job-step-done">ok</span>
+              </div>
+            </div>
+
+            <div v-if="job.result" class="job-result">
+              <p>
+                Processados: {{ job.result.processed ?? 0 }} |
+                Inseridos: {{ job.result.inserted ?? 0 }} |
+                Mesclados: {{ job.result.merged ?? 0 }} |
+                Ignorados: {{ job.result.skipped ?? 0 }}
+              </p>
+              <p v-if="jobNoOutputHint(job)" class="job-hint warning">{{ jobNoOutputHint(job) }}</p>
+              <p v-if="job.result.error" class="job-error">{{ job.result.error }}</p>
+            </div>
+          </article>
+        </div>
+        <div v-if="jobs.length > 0" class="jobs-pagination">
+          <div class="pagination-info">
+            <span>Mostrando {{ (jobsCurrentPage - 1) * jobsPageSize + 1 }} até {{ Math.min(jobsCurrentPage * jobsPageSize, jobsSorted.length) }} de {{ jobsSorted.length }} jobs</span>
+          </div>
+          <div class="pagination-controls">
+            <label>
+              Itens por página:
+              <select v-model.number="jobsPageSize" class="form-select">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+            </label>
+            <div class="pagination-buttons">
+              <button @click="jobsCurrentPage = Math.max(1, jobsCurrentPage - 1)" :disabled="jobsCurrentPage === 1" class="pagination-button">
+                ← Anterior
+              </button>
+              <span class="pagination-text">Página {{ jobsCurrentPage }} de {{ jobsTotalPages }}</span>
+              <button @click="jobsCurrentPage = Math.min(jobsTotalPages, jobsCurrentPage + 1)" :disabled="jobsCurrentPage === jobsTotalPages" class="pagination-button">
+                Próximo →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'templates'" class="panel">
+        <h2>Templates</h2>
+        <div class="card templates-card">
+          <h3>Salvar modelo de migração</h3>
+          <label>
+            Nome do template
+            <input v-model="templateForm.name" type="text" placeholder="Ex: Migração favorites v1" />
+          </label>
+          <label>
+            Descrição (opcional)
+            <input v-model="templateForm.description" type="text" placeholder="Resumo do objetivo deste modelo" />
+          </label>
+          <div class="connection-action-row">
+            <button class="primary-button" @click="saveCurrentTemplate" :disabled="templatesSaving">
+              {{ templatesSaving ? 'Salvando...' : 'Salvar template atual' }}
+            </button>
+            <button class="primary-button secondary" @click="loadTemplates" :disabled="templatesLoading">
+              {{ templatesLoading ? 'Atualizando...' : 'Atualizar lista' }}
+            </button>
+          </div>
+          <div v-if="templatesFeedback" :class="['status-chip', templatesFeedbackType]">{{ templatesFeedback }}</div>
+
+          <h3 style="margin-top: 18px;">Templates salvos</h3>
+          <p v-if="templates.length === 0">Nenhum template salvo.</p>
+          <div v-else class="templates-list">
+            <article v-for="templateItem in templates" :key="templateItem.templateId" class="template-item">
+              <div>
+                <strong>{{ templateItem.name }}</strong>
+                <p v-if="templateItem.description">{{ templateItem.description }}</p>
+                <small>Atualizado em {{ formatTemplateDate(templateItem.updatedAt) }}</small>
+              </div>
+              <div class="dashboard-actions">
+                <button class="wizard-secondary" @click="applyTemplate(templateItem)">Usar no fluxo atual</button>
+                <button class="wizard-secondary" :disabled="templatesDeletingId === templateItem.templateId" @click="deleteTemplate(templateItem.templateId)">
+                  {{ templatesDeletingId === templateItem.templateId ? 'Removendo...' : 'Excluir' }}
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import axios from 'axios'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+
+const appLogoUrl = new URL('./assets/logo.png', import.meta.url).href
+const mongoPathImageUrl = new URL('./assets/MongoDB.png', import.meta.url).href
+const postgresPathImageUrl = new URL('./assets/postgres.png', import.meta.url).href
+
+const activeTab = ref('dashboard')
+
+const tabs = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'engines', label: 'Engines' },
+  { key: 'connections', label: 'Connections' },
+  { key: 'mapping', label: 'Mapping' },
+  { key: 'preview', label: 'Preview' },
+  { key: 'jobs', label: 'Jobs' },
+  { key: 'templates', label: 'Templates' },
+]
+
+const selectedSourceEngine = ref('MongoDB')
+const selectedTargetEngine = ref('MongoDB')
+
+const selectableEngineNames = computed(() => {
+  return availableEngines.filter((engine) => engine.selectable).map((engine) => engine.name)
+})
+
+const canContinueFromEngines = computed(
+  () => {
+    if (!selectableEngineNames.value.includes(selectedSourceEngine.value) || !selectableEngineNames.value.includes(selectedTargetEngine.value)) {
+      return false
+    }
+    const hasKeycloak = selectedSourceEngine.value === 'Keycloak' || selectedTargetEngine.value === 'Keycloak'
+    if (!hasKeycloak) {
+      return true
+    }
+    return selectedSourceEngine.value === 'Keycloak' && selectedTargetEngine.value === 'Keycloak'
+  }
+)
+
+const canContinueFromConnections = computed(
+  () => {
+    if (selectedSourceEngine.value === 'Keycloak' && selectedTargetEngine.value === 'Keycloak') {
+      return sourceKeycloakConnection.connected && destinationKeycloakConnection.connected
+    }
+    return Boolean(sourceConnection.database) && Boolean(destinationConnection.database)
+  }
+)
+
+const migrationMode = ref<'simple' | 'custom'>('simple')
+
+const engineGlyphMap: Record<string, string> = {
+  MongoDB: '🍃',
+  PostgreSQL: '🐘',
+  MySQL: '🐬',
+  Oracle: '◉',
+  Keycloak: '🛡',
+  Redis: '🧠',
+}
+
+const engineLogoMap: Partial<Record<string, string>> = {
+  MongoDB: new URL('./assets/MongoDB.png', import.meta.url).href,
+  PostgreSQL: new URL('./assets/postgres.png', import.meta.url).href,
+  Redis: new URL('./assets/redis.png', import.meta.url).href,
+}
+
+const getEngineLogo = (engineName: string) => engineLogoMap[engineName] || ''
+
+const getEngineGlyph = (engineName: string) => engineGlyphMap[engineName] || '🗄'
+
+const getPathEngineImage = (engineName: string) => {
+  if (engineName === 'MongoDB') {
+    return mongoPathImageUrl
+  }
+  if (engineName === 'PostgreSQL') {
+    return postgresPathImageUrl
+  }
+  return ''
+}
+
+const availableEngines = [
+  {
+    name: 'MongoDB',
+    type: 'Document database',
+    description: 'Collections, nested objects, arrays, DBRef, ObjectId',
+    features: ['Collections', 'Nested Objects', 'DBRef'],
+    available: true,
+    selectable: true,
+  },
+  {
+    name: 'PostgreSQL',
+    type: 'Relational database',
+    description: 'Schemas, tables, columns, primary keys, constraints',
+    features: ['Schemas', 'Constraints', 'JSONB'],
+    available: true,
+    selectable: true,
+  },
+  {
+    name: 'Keycloak',
+    type: 'Identity and Access Management',
+    description: 'Realm users migration with configurable field mapping (Keycloak to Keycloak only)',
+    features: ['Users', 'Realms', 'Username mapping'],
+    available: true,
+    selectable: true,
+  },
+  {
+    name: 'MySQL',
+    type: 'Relational database',
+    description: 'Coming soon',
+    features: ['Tables', 'Indexes'],
+    available: false,
+    selectable: false,
+  },
+  {
+    name: 'Oracle',
+    type: 'Enterprise relational database',
+    description: 'Coming soon',
+    features: ['Enterprise', 'PL/SQL'],
+    available: false,
+    selectable: false,
+  },
+  {
+    name: 'Redis',
+    type: 'Key-value database',
+    description: 'Coming soon',
+    features: ['KV', 'Streams'],
+    available: false,
+    selectable: false,
+  },
+]
+
+const setSourceEngine = (engineName: string) => {
+  if (!selectableEngineNames.value.includes(engineName)) {
+    return
+  }
+  selectedSourceEngine.value = engineName
+  if (engineName === 'Keycloak') {
+    selectedTargetEngine.value = 'Keycloak'
+  } else {
+    if (selectedTargetEngine.value === 'Keycloak') {
+      selectedTargetEngine.value = ''
+    }
+  }
+  sourceConnection.status = ''
+  sourceConnection.message = ''
+  sourceConnection.database = ''
+  sourceConnection.collection = ''
+  sourceDatabases.value = []
+  sourceCollections.value = []
+  sourceSamples.value = []
+  sourceKeycloakConnection.connected = false
+  sourceKeycloakConnection.message = ''
+  migrationMode.value = 'simple'
+}
+
+const setTargetEngine = (engineName: string) => {
+  if (!selectableEngineNames.value.includes(engineName)) {
+    return
+  }
+  selectedTargetEngine.value = engineName
+  if (engineName === 'Keycloak') {
+    selectedSourceEngine.value = 'Keycloak'
+  } else {
+    if (selectedSourceEngine.value === 'Keycloak') {
+      selectedSourceEngine.value = ''
+    }
+  }
+  destinationConnection.status = ''
+  destinationConnection.message = ''
+  destinationConnection.database = ''
+  destinationConnection.collection = ''
+  destinationDatabases.value = []
+  destinationCollections.value = []
+  destinationSamples.value = []
+  destinationKeycloakConnection.connected = false
+  destinationKeycloakConnection.message = ''
+  migrationMode.value = 'simple'
+}
+
+const dashboardRecentJobs = [
+  {
+    job: '#1024 accounts -> clients',
+    source: 'accounts',
+    target: 'clients',
+    status: 'Running',
+    statusClass: 'optional',
+    progress: '73%',
+    records: '91k/124k',
+    failed: '138',
+    duration: '32m',
+    startedAt: 'Today 10:32',
+  },
+  {
+    job: '#1023 orders -> orders',
+    source: 'orders',
+    target: 'orders',
+    status: 'Completed',
+    statusClass: 'valid',
+    progress: '100%',
+    records: '48k/48k',
+    failed: '0',
+    duration: '18m',
+    startedAt: 'Today 09:10',
+  },
+  {
+    job: '#1022 users -> customers',
+    source: 'users',
+    target: 'customers',
+    status: 'Warnings',
+    statusClass: 'warn',
+    progress: '100%',
+    records: '22k/22k',
+    failed: '41',
+    duration: '11m',
+    startedAt: 'Yesterday',
+  },
+  {
+    job: '#1021 invoices -> invoices',
+    source: 'invoices',
+    target: 'invoices',
+    status: 'Failed',
+    statusClass: 'warn',
+    progress: '42%',
+    records: '8k/19k',
+    failed: '312',
+    duration: '7m',
+    startedAt: 'Yesterday',
+  },
+]
+
+const dashboardIssues = [
+  '1 DBRef resolution missing',
+  '138 failed records need review',
+  '2 required target fields unmapped',
+  'PostgreSQL Backup connection is offline',
+]
+
+const dashboardActivity = [
+  { day: 'Mon', ok: 58, warn: 10 },
+  { day: 'Tue', ok: 70, warn: 14 },
+  { day: 'Wed', ok: 52, warn: 16 },
+  { day: 'Thu', ok: 80, warn: 10 },
+  { day: 'Fri', ok: 66, warn: 18 },
+  { day: 'Sat', ok: 45, warn: 11 },
+  { day: 'Sun', ok: 62, warn: 13 },
+]
+
+const isMigrationFlowTab = computed(() => ['engines', 'connections', 'mapping', 'preview'].includes(activeTab.value))
+
+const migrationStepDescription = computed(() => {
+  if (activeTab.value === 'engines') {
+    return 'Choose source and target engines for this migration path.'
+  }
+  if (activeTab.value === 'connections') {
+    return 'Configure source and destination before field mapping.'
+  }
+  if (activeTab.value === 'mapping') {
+    return 'Define mappings and transformations for the destination payload.'
+  }
+  if (activeTab.value === 'preview') {
+    return 'Review the transformed payload before creating the migration job.'
+  }
+  return ''
+})
+
+const sourceConnection = reactive({
+  connectionString: 'mongodb://localhost:27017',
+  database: '',
+  collection: '',
+  authEnabled: false,
+  username: '',
+  password: '',
+  authSource: '',
+  status: '',
+  message: '',
+  testing: false,
+})
+
+const destinationConnection = reactive({
+  connectionString: 'mongodb://localhost:27017',
+  database: '',
+  collection: '',
+  authEnabled: false,
+  username: '',
+  password: '',
+  authSource: '',
+  status: '',
+  message: '',
+  testing: false,
+})
+
+const sourceAltConnection = reactive({
+  host: '',
+  port: '',
+  database: '',
+  username: '',
+  password: '',
+})
+
+const sourceKeycloakConnection = reactive({
+  baseUrl: '',
+  realm: '',
+  authMode: 'client_credentials' as 'client_credentials' | 'password',
+  clientId: '',
+  clientSecret: '',
+  username: '',
+  password: '',
+  testing: false,
+  connected: false,
+  message: '',
+})
+
+const destinationKeycloakConnection = reactive({
+  baseUrl: '',
+  realm: '',
+  authMode: 'client_credentials' as 'client_credentials' | 'password',
+  clientId: '',
+  clientSecret: '',
+  username: '',
+  password: '',
+  testing: false,
+  connected: false,
+  message: '',
+})
+
+const keycloakUsernameSourceField = ref('username')
+
+const destinationAltConnection = reactive({
+  host: '',
+  port: '',
+  database: '',
+  username: '',
+  password: '',
+})
+
+const previewRows = [
+  '{ "name": { "first": "Jane", "last": "Doe" }, "email": "jane@example.com" }',
+  '{ "name": { "first": "John", "last": "Smith" }, "email": "john@example.com" }',
+]
+
+const sourceResult = computed(() => {
+  if (!sourceConnection.status) {
+    return null
+  }
+  return {
+    success: sourceConnection.status === 'success',
+    message: sourceConnection.message,
+  }
+})
+
+const destinationResult = computed(() => {
+  if (!destinationConnection.status) {
+    return null
+  }
+  return {
+    success: destinationConnection.status === 'success',
+    message: destinationConnection.message,
+  }
+})
+
+const testConnection = async (connection: typeof sourceConnection, resultSetter: (status: string, message: string) => void) => {
+  connection.testing = true
+  connection.status = ''
+  connection.message = ''
+
+  try {
+    const response = await axios.post('/api/explore/validate', buildMongoConnectionPayload(connection))
+    if (response.data.connected) {
+      
+    } else {
+      resultSetter('error', 'Falha ao validar a conexão.')
+    }
+  } catch (error: any) {
+    resultSetter('error', error.response?.data?.detail || error.message || 'Erro na conexão.')
+  } finally {
+    connection.testing = false
+  }
+}
+
+const testSourceConnection = async () => {
+  await testConnection(sourceConnection, (status, message) => {
+    sourceConnection.status = status
+    sourceConnection.message = message
+  })
+}
+
+const testDestinationConnection = async () => {
+  await testConnection(destinationConnection, (status, message) => {
+    destinationConnection.status = status
+    destinationConnection.message = message
+  })
+}
+
+const buildKeycloakPayload = (connection: typeof sourceKeycloakConnection) => ({
+  baseUrl: connection.baseUrl.trim(),
+  realm: connection.realm.trim(),
+  authMode: connection.authMode,
+  clientId: connection.clientId.trim(),
+  clientSecret: connection.authMode === 'client_credentials' ? connection.clientSecret : null,
+  username: connection.authMode === 'password' ? connection.username.trim() : null,
+  password: connection.authMode === 'password' ? connection.password : null,
+})
+
+const testKeycloakConnection = async (
+  connection: typeof sourceKeycloakConnection,
+  applyResult: (connected: boolean, message: string) => void,
+) => {
+  connection.testing = true
+  connection.message = ''
+  try {
+    const response = await axios.post('/api/keycloak/validate', buildKeycloakPayload(connection))
+    if (response.data.connected) {
+      applyResult(true, 'Conexao valida com o Keycloak.')
+    } else {
+      applyResult(false, 'Falha ao validar conexao com Keycloak.')
+    }
+  } catch (error: any) {
+    applyResult(false, error.response?.data?.detail || error.message || 'Falha ao validar conexao com Keycloak.')
+  } finally {
+    connection.testing = false
+  }
+}
+
+const testSourceKeycloakConnection = async () => {
+  await testKeycloakConnection(sourceKeycloakConnection, (connected, message) => {
+    sourceKeycloakConnection.connected = connected
+    sourceKeycloakConnection.message = message
+  })
+}
+
+const testDestinationKeycloakConnection = async () => {
+  await testKeycloakConnection(destinationKeycloakConnection, (connected, message) => {
+    destinationKeycloakConnection.connected = connected
+    destinationKeycloakConnection.message = message
+  })
+}
+
+const loadSourceKeycloakUsers = async () => {
+  sourceSamplesLoading.value = true
+  sourceSamples.value = []
+  try {
+    const response = await axios.post('/api/keycloak/users', {
+      ...buildKeycloakPayload(sourceKeycloakConnection),
+      limit: 10,
+    })
+    sourceSamples.value = response.data.items || []
+    syncMappingsFromSamples()
+    if (sourceDocumentForMapping.value) {
+      mappedPreviewDocument.value = buildMappedDocument(sourceDocumentForMapping.value)
+    }
+  } catch (error: any) {
+    sourceKeycloakConnection.message = error.response?.data?.detail || error.message || 'Erro ao carregar usuarios do Keycloak.'
+  } finally {
+    sourceSamplesLoading.value = false
+  }
+}
+
+const applyMongoCredentials = (connectionString: string, username: string, password: string) => {
+  const user = username.trim()
+  const pass = password.trim()
+  if (!user && !pass) {
+    return connectionString
+  }
+
+  const schemeIndex = connectionString.indexOf('://')
+  if (schemeIndex < 0) {
+    return connectionString
+  }
+
+  const prefix = connectionString.slice(0, schemeIndex + 3)
+  const rest = connectionString.slice(schemeIndex + 3)
+  const hostAndPath = rest.includes('@') ? rest.split('@').slice(1).join('@') : rest
+
+  const encodedUser = encodeURIComponent(user)
+  const encodedPass = encodeURIComponent(pass)
+  const credentials = user ? `${encodedUser}:${encodedPass}` : `:${encodedPass}`
+
+  return `${prefix}${credentials}@${hostAndPath}`
+}
+
+const buildMongoConnectionPayload = (connection: typeof sourceConnection) => ({
+  connectionString: connection.authEnabled
+    ? applyMongoCredentials(connection.connectionString, connection.username, connection.password)
+    : connection.connectionString,
+  authSource: connection.authEnabled ? (connection.authSource.trim() || null) : null,
+  database: connection.database,
+  collection: connection.collection,
+})
+
+// Databases and Collections loading
+const sourceDatabases = ref<string[]>([])
+const sourceDatabasesLoading = ref(false)
+const sourceCollections = ref<string[]>([])
+const sourceCollectionsLoading = ref(false)
+const destinationDatabases = ref<string[]>([])
+const destinationDatabasesLoading = ref(false)
+const destinationCollections = ref<string[]>([])
+const destinationCollectionsLoading = ref(false)
+
+const sourceSamples = ref<any[]>([])
+const sourceSamplesLoading = ref(false)
+const destinationSamples = ref<any[]>([])
+const destinationSamplesLoading = ref(false)
+const useSelectedBaseDocument = ref(false)
+const selectedSourceBaseDocumentId = ref('')
+const sourceBaseDocument = ref<Record<string, any> | null>(null)
+const sourceFieldPaths = ref<string[]>([])
+const destinationFieldPaths = ref<string[]>([])
+type MappingRule = {
+  id: string
+  sourceField: string
+  targetField: string
+  editTargetName: boolean
+  valueFromField: string
+  noSource?: boolean
+  ruleType: 'direct' | 'concat'
+  concatLeftField: string
+  concatRightField: string
+  concatSeparator: string
+  dbRefEnabled: boolean
+  dbRefCollection: string
+  dbRefForeignField: string
+  defaultValueEnabled: boolean
+  defaultValueRaw: string
+  isCustom: boolean
+}
+
+let _ruleIdSeq = 0
+const nextRuleId = () => String(++_ruleIdSeq)
+
+const mappingRows = ref<MappingRule[]>([])
+const mappedPreviewDocument = ref<Record<string, any> | null>(null)
+const insertMode = ref<'one' | 'all'>('one')
+const extractStarredsEnabled = ref(false)
+const mergeDocumentsEnabled = ref(false)
+const mergeByField = ref('')
+const createJobLoading = ref(false)
+const createJobError = ref('')
+
+const showAddRuleModal = ref(false)
+const addRuleMode = ref<'new' | 'concat'>('new')
+const addRuleSourceField = ref('')
+const addRuleConcatLeft = ref('')
+const addRuleConcatRight = ref('')
+const addRuleConcatSeparator = ref(' ')
+const addRuleTargetField = ref('')
+const addRuleNoSource = ref(false)
+const addRuleNoSourceDefaultRaw = ref('')
+const addRuleError = ref('')
+
+const showDbRefModal = ref(false)
+const dbRefEditingRule = ref<MappingRule | null>(null)
+const dbRefEnabledDraft = ref(false)
+const dbRefCollectionDraft = ref('')
+const dbRefForeignFieldDraft = ref('_id')
+const dbRefError = ref('')
+
+const showDefaultValueModal = ref(false)
+const defaultValueEditingRule = ref<MappingRule | null>(null)
+const defaultValueEnabledDraft = ref(false)
+const defaultValueRawDraft = ref('')
+const defaultValueError = ref('')
+
+type JobItem = {
+  jobId: string
+  status: string
+  progress: number
+  createdAt: string
+  updatedAt: string
+  canRerun?: boolean
+  result?: {
+    processed?: number
+    inserted?: number
+    merged?: number
+    skipped?: number
+    errors?: Array<{ id?: string; reason?: string }>
+    error?: string
+  } | null
+}
+
+type TemplatePayload = {
+  migrationName: string
+  source: {
+    database: string
+    collection: string
+  }
+  target: {
+    database: string
+    collection: string
+  }
+  sourceBaseDocumentId?: string | null
+  fieldMapping: Record<string, string>
+  manualMapping: Record<string, any>
+  concatRules: Array<{ sourceFields: string[]; targetField: string; separator: string }>
+  dbRefRules: Array<{ targetField: string; fromCollection: string; foreignField: string }>
+  mergeByField: string | null
+  lookups: Array<Record<string, any>>
+  flattenConfig: Array<{ field: string; mode: 'preserve' | 'explode' }>
+  filterRules: Array<{ field: string; op: 'eq' | 'truthy'; value?: any }>
+}
+
+type TemplateItem = {
+  templateId: number
+  name: string
+  description?: string | null
+  payload: TemplatePayload
+  createdAt: string
+  updatedAt: string
+}
+
+const jobs = ref<JobItem[]>([])
+const jobsLoading = ref(false)
+const rerunJobLoadingId = ref('')
+const deleteJobLoadingId = ref('')
+const jobsCurrentPage = ref(1)
+const jobsPageSize = ref(10)
+const jobsSortBy = ref<'date_desc' | 'date_asc'>('date_desc')
+const templates = ref<TemplateItem[]>([])
+const templatesLoading = ref(false)
+const templatesSaving = ref(false)
+const templatesDeletingId = ref<number | null>(null)
+const templatesFeedback = ref('')
+const templatesFeedbackType = ref<'success' | 'error'>('success')
+const templateForm = reactive({
+  name: '',
+  description: '',
+})
+const JOB_STAGES = ['pending', 'loading_source', 'mapping_fields', 'inserting_documents', 'done'] as const
+let jobsPollTimer: ReturnType<typeof setInterval> | null = null
+
+const jobsSorted = computed(() => {
+  const sorted = [...jobs.value]
+  if (jobsSortBy.value === 'date_asc') {
+    sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  } else {
+    sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+  return sorted
+})
+
+const jobsPaginated = computed(() => {
+  const start = (jobsCurrentPage.value - 1) * jobsPageSize.value
+  const end = start + jobsPageSize.value
+  return jobsSorted.value.slice(start, end)
+})
+
+const jobsTotalPages = computed(() => Math.ceil(jobsSorted.value.length / jobsPageSize.value))
+
+const previewSourceDocument = computed(() => {
+  return sourceDocumentForMapping.value
+    ? JSON.stringify(sourceDocumentForMapping.value, null, 2)
+    : 'Carregue uma amostra da origem para visualizar.'
+})
+
+const previewMappedDocument = computed(() => {
+  if (sourceDocumentForMapping.value) {
+    return JSON.stringify(buildMappedDocument(sourceDocumentForMapping.value), null, 2)
+  }
+  if (mappedPreviewDocument.value) {
+    return JSON.stringify(mappedPreviewDocument.value, null, 2)
+  }
+  return 'O resultado do mapeamento aparecerá aqui.'
+})
+
+const sourceDocumentForMapping = computed<Record<string, any> | null>(() => {
+  if (useSelectedBaseDocument.value && sourceBaseDocument.value) {
+    return sourceBaseDocument.value
+  }
+  return sourceSamples.value.length > 0 ? sourceSamples.value[0] : null
+})
+
+const getDocumentId = (item: Record<string, any>): string => {
+  const rawId = item?._id
+  if (!rawId) {
+    return ''
+  }
+  if (typeof rawId === 'string') {
+    return rawId
+  }
+  if (typeof rawId === 'object' && typeof rawId.$oid === 'string') {
+    return rawId.$oid
+  }
+  return ''
+}
+
+const selectSourceBaseDocument = (item: Record<string, any>) => {
+  const id = getDocumentId(item)
+  selectedSourceBaseDocumentId.value = id
+  sourceBaseDocument.value = id ? item : null
+  syncMappingsFromSamples()
+  mappedPreviewDocument.value = sourceDocumentForMapping.value ? buildMappedDocument(sourceDocumentForMapping.value) : null
+}
+
+const hasStarredsArray = computed(() => {
+  if (sourceSamples.value.length === 0) {
+    return false
+  }
+  const value = readValueByPath(sourceSamples.value[0], 'starreds')
+  return Array.isArray(value)
+})
+
+const mergeFieldOptions = computed(() => {
+  return Array.from(
+    new Set(
+      mappingRows.value
+        .map((row) => row.targetField.trim())
+        .filter((field) => field.length > 0)
+    )
+  )
+})
+
+const formatPreviewValue = (value: any) => {
+  if (value === undefined) {
+    return 'undefined'
+  }
+  if (value === null) {
+    return 'null'
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
+const previewSourceFields = computed(() => {
+  if (!sourceDocumentForMapping.value) {
+    return []
+  }
+
+  return sourceFieldPaths.value.map((path) => ({
+    path,
+    value: formatPreviewValue(readValueByPath(sourceDocumentForMapping.value, path)),
+  }))
+})
+
+const previewMappedFields = computed(() => {
+  if (!sourceDocumentForMapping.value) {
+    return []
+  }
+
+  const sourceForPreview = (() => {
+    if (!extractStarredsEnabled.value) {
+      return sourceDocumentForMapping.value
+    }
+
+    const starreds = readValueByPath(sourceDocumentForMapping.value, 'starreds')
+    if (!Array.isArray(starreds)) {
+      return sourceDocumentForMapping.value
+    }
+
+    const firstStarred = starreds.find((entry) => entry && isTruthyStarred(entry.starred))
+    if (!firstStarred) {
+      return sourceDocumentForMapping.value
+    }
+
+    return { ...sourceDocumentForMapping.value, starreds: firstStarred }
+  })()
+
+  return mappingRows.value
+    .filter((mapping) => mapping.targetField)
+    .map((mapping) => {
+      const computedValue = mapping.ruleType === 'concat'
+        ? [
+            readValueByPath(sourceForPreview, mapping.concatLeftField),
+            readValueByPath(sourceForPreview, mapping.concatRightField),
+          ]
+            .filter((item) => item !== null && item !== undefined)
+            .map((item) => String(item))
+            .join(mapping.concatSeparator)
+        : readValueByPath(sourceForPreview, mapping.valueFromField || mapping.sourceField)
+
+      const value = mapping.defaultValueEnabled
+        ? normalizeManualValue(mapping.defaultValueRaw)
+        : (mapping.dbRefEnabled && mapping.dbRefCollection
+          ? { $id: computedValue, $ref: mapping.dbRefCollection }
+          : computedValue)
+
+      return {
+        path: mapping.targetField,
+        value: formatPreviewValue(value),
+        mode: mapping.ruleType === 'concat' || mapping.editTargetName ? 'manual' : 'mapped',
+      }
+    })
+})
+
+const mappingTargetOptions = computed(() => {
+  if (destinationFieldPaths.value.length > 0) {
+    return destinationFieldPaths.value
+  }
+  return sourceFieldPaths.value
+})
+
+const wizardCurrentStep = computed(() => {
+  if (activeTab.value === 'engines') {
+    return 1
+  }
+  if (activeTab.value === 'preview') {
+    return 5
+  }
+  if (activeTab.value === 'mapping') {
+    return 4
+  }
+  if (activeTab.value === 'connections') {
+    return 3
+  }
+  return 0
+})
+
+const wizardSteps = computed(() => {
+  const baseSteps = [
+    { key: 'engines', label: 'Database Engines', number: 1 },
+    { key: 'setup', label: 'Connection Setup', number: 2 },
+    { key: 'source-target', label: 'Source & Target', number: 3 },
+    { key: 'mapping', label: 'Field Mapping', number: 4 },
+    { key: 'review', label: 'Review & Job', number: 5 },
+  ]
+
+  return baseSteps.map((step) => {
+    let state = 'upcoming'
+    if (wizardCurrentStep.value > 0 && step.number < wizardCurrentStep.value) {
+      state = 'completed'
+    } else if (step.number === wizardCurrentStep.value) {
+      state = 'active'
+    }
+
+    return {
+      key: step.key,
+      label: step.label,
+      badge: state === 'completed' ? '✓' : String(step.number),
+      state,
+    }
+  })
+})
+
+const typeToClass = (type: string) => {
+  const lookup: Record<string, string> = {
+    string: 'type-string',
+    object: 'type-object',
+    date: 'type-date',
+    array: 'type-array',
+    objectid: 'type-objectid',
+    number: 'type-string',
+    boolean: 'type-date',
+    unknown: 'type-string',
+  }
+  return lookup[type.toLowerCase()] || 'type-string'
+}
+
+const inferValueType = (value: any): string => {
+  if (value === null || value === undefined) {
+    return 'unknown'
+  }
+  if (Array.isArray(value)) {
+    return 'array'
+  }
+  if (typeof value === 'string') {
+    return 'string'
+  }
+  if (typeof value === 'number') {
+    return 'number'
+  }
+  if (typeof value === 'boolean') {
+    return 'boolean'
+  }
+  if (typeof value === 'object') {
+    if ('$oid' in value || '$binary' in value) {
+      return 'objectId'
+    }
+    if ('$date' in value) {
+      return 'date'
+    }
+    return 'object'
+  }
+  return 'unknown'
+}
+
+const sourceFieldTree = computed(() => {
+  return sourceFieldPaths.value.map((path) => {
+    const value = sourceDocumentForMapping.value ? readValueByPath(sourceDocumentForMapping.value, path) : undefined
+    const type = inferValueType(value)
+    return {
+      path,
+      depth: path.split('.').length - 1,
+      type,
+      typeClass: typeToClass(type),
+    }
+  })
+})
+
+const targetFieldList = computed(() => {
+  const targetPaths = destinationFieldPaths.value.length > 0 ? destinationFieldPaths.value : mappingTargetOptions.value
+  const mappedTargets = mappingRows.value
+    .map((row) => row.targetField?.trim())
+    .filter((field): field is string => Boolean(field))
+
+  const mergedTargets = [...targetPaths]
+  for (const mappedTarget of mappedTargets) {
+    if (!mergedTargets.includes(mappedTarget)) {
+      mergedTargets.push(mappedTarget)
+    }
+  }
+
+  return mergedTargets.map((path) => {
+    const value = destinationSamples.value.length > 0 ? readValueByPath(destinationSamples.value[0], path) : undefined
+    const type = inferValueType(value)
+    return {
+      path,
+      type: type === 'unknown' ? 'varchar' : type,
+      typeClass: typeToClass(type === 'unknown' ? 'string' : type),
+    }
+  })
+})
+
+const inferTransform = (sourceField: string) => {
+  if (sourceField.includes('.$id')) {
+    return 'DBRef Resolve'
+  }
+  if (sourceField.includes('zip') || sourceField.includes('document')) {
+    return 'Rename'
+  }
+  if (sourceField.toLowerCase().includes('date') || sourceField.toLowerCase().includes('created')) {
+    return 'Date Format'
+  }
+  if (sourceField.toLowerCase().includes('tags')) {
+    return 'Array to JSON'
+  }
+  if (sourceField.includes('.')) {
+    return 'Extract'
+  }
+  return 'None'
+}
+
+const mappingTableRows = computed(() => {
+  return mappingRows.value.map((row, idx) => {
+    const sourceValue = sourceDocumentForMapping.value
+      ? (
+          row.ruleType === 'concat'
+            ? [
+                readValueByPath(sourceDocumentForMapping.value, row.concatLeftField),
+                readValueByPath(sourceDocumentForMapping.value, row.concatRightField),
+              ].join(row.concatSeparator)
+            : readValueByPath(sourceDocumentForMapping.value, row.valueFromField || row.sourceField)
+        )
+      : undefined
+    const sourceType = inferValueType(sourceValue)
+    const typeLabel = `${sourceType} -> varchar`
+    const required = idx < 3 || row.sourceField.includes('created') || row.sourceField.includes('zip')
+    const hasTarget = Boolean(row.targetField && row.targetField.trim())
+    const status = row.defaultValueEnabled && !row.defaultValueRaw.trim()
+      ? 'Warning'
+      : row.dbRefEnabled && !row.dbRefCollection
+      ? 'Warning'
+      : (row.sourceField.includes('.$id') ? 'Warning' : (hasTarget ? 'Valid' : 'Optional'))
+    const statusClass = status === 'Warning' ? 'warn' : (status === 'Valid' ? 'valid' : 'optional')
+    return {
+      index: idx + 1,
+      isFirst: idx === 0,
+      isLast: idx === mappingRows.value.length - 1,
+      model: row,
+      typeLabel,
+      transform: row.defaultValueEnabled
+        ? 'Default Value'
+        : row.dbRefEnabled
+        ? `DBRef ${row.dbRefCollection ? `(${row.dbRefCollection})` : ''}`.trim()
+        : (row.ruleType === 'concat' ? 'Concatenate' : inferTransform(row.sourceField)),
+      required,
+      status,
+      statusClass,
+    }
+  })
+})
+
+const toJsonLines = (value: Record<string, any>) => JSON.stringify(value, null, 2).split('\n')
+
+const sourceCodeLines = computed(() => {
+  const sample = sourceDocumentForMapping.value || {}
+  return toJsonLines(sample)
+})
+
+const mappedCodeLines = computed(() => {
+  const sample = sourceDocumentForMapping.value || {}
+  return toJsonLines(buildMappedDocument(sample))
+})
+
+const mappedRequiredCount = computed(() => mappingTableRows.value.filter((row) => row.required && row.model.targetField).length)
+const optionalUnmappedCount = computed(() => mappingTableRows.value.filter((row) => !row.required && !row.model.targetField).length)
+const hasDbRefWarning = computed(() => mappingRows.value.some((row) => row.dbRefEnabled && !row.dbRefCollection))
+const hasDefaultValueWarning = computed(() => mappingRows.value.some((row) => row.defaultValueEnabled && !row.defaultValueRaw.trim()))
+
+const extractFieldPaths = (value: any, prefix = ''): string[] => {
+  if (value === null || value === undefined) {
+    return prefix ? [prefix] : []
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return prefix ? [prefix] : []
+    }
+    const nestedPaths = extractFieldPaths(value[0], prefix)
+    return nestedPaths.length > 0 ? nestedPaths : prefix ? [prefix] : []
+  }
+
+  if (typeof value !== 'object') {
+    return prefix ? [prefix] : []
+  }
+
+  // Treat Extended JSON/BSON helper objects (keys like $binary, $date) as leaf values.
+  const keys = Object.keys(value)
+  if (keys.some((key) => key.startsWith('$'))) {
+    return prefix ? [prefix] : []
+  }
+
+  const paths: string[] = []
+  for (const [key, childValue] of Object.entries(value)) {
+    const nextPrefix = prefix ? `${prefix}.${key}` : key
+    const childPaths = extractFieldPaths(childValue, nextPrefix)
+    if (childPaths.length === 0) {
+      paths.push(nextPrefix)
+    } else {
+      paths.push(...childPaths)
+    }
+  }
+  return paths
+}
+
+const syncMappingsFromSamples = () => {
+  sourceFieldPaths.value = sourceDocumentForMapping.value ? extractFieldPaths(sourceDocumentForMapping.value) : []
+  destinationFieldPaths.value = destinationSamples.value.length > 0 ? extractFieldPaths(destinationSamples.value[0]) : []
+  const destinationHasSchema = destinationFieldPaths.value.length > 0
+
+  const customRules = mappingRows.value.filter((item) => item.isCustom)
+  const currentMappings = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.targetField]))
+  const currentEditTargetFlags = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.editTargetName]))
+  const currentValueFromFields = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.valueFromField]))
+  const currentDbRefEnabled = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.dbRefEnabled]))
+  const currentDbRefCollection = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.dbRefCollection]))
+  const currentDbRefForeignField = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.dbRefForeignField]))
+  const currentDefaultEnabled = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.defaultValueEnabled]))
+  const currentDefaultRaw = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.defaultValueRaw]))
+  const currentIds = new Map(mappingRows.value.filter((item) => !item.isCustom).map((item) => [item.sourceField, item.id]))
+
+  const directRules = sourceFieldPaths.value.map((field) => ({
+    id: currentIds.get(field) ?? nextRuleId(),
+    sourceField: field,
+    targetField: currentMappings.get(field) ?? (destinationHasSchema ? (destinationFieldPaths.value.includes(field) ? field : '') : field),
+    editTargetName: currentEditTargetFlags.get(field) ?? false,
+    valueFromField: currentValueFromFields.get(field) ?? field,
+    ruleType: 'direct' as const,
+    concatLeftField: '',
+    concatRightField: '',
+    concatSeparator: ' ',
+    dbRefEnabled: currentDbRefEnabled.get(field) ?? false,
+    dbRefCollection: currentDbRefCollection.get(field) ?? '',
+    dbRefForeignField: currentDbRefForeignField.get(field) ?? '_id',
+    defaultValueEnabled: currentDefaultEnabled.get(field) ?? false,
+    defaultValueRaw: currentDefaultRaw.get(field) ?? '',
+    isCustom: false,
+  }))
+
+  const filteredCustomRules = customRules.filter((rule) => {
+    if (rule.noSource) {
+      return true
+    }
+    if (rule.ruleType === 'concat') {
+      return sourceFieldPaths.value.includes(rule.concatLeftField) && sourceFieldPaths.value.includes(rule.concatRightField)
+    }
+    return sourceFieldPaths.value.includes(rule.valueFromField)
+  })
+
+  mappingRows.value = [...directRules, ...filteredCustomRules]
+}
+
+const openAddRuleModal = () => {
+  showAddRuleModal.value = true
+  addRuleError.value = ''
+  addRuleMode.value = 'new'
+  addRuleSourceField.value = sourceFieldPaths.value[0] || ''
+  addRuleConcatLeft.value = sourceFieldPaths.value[0] || ''
+  addRuleConcatRight.value = sourceFieldPaths.value[1] || sourceFieldPaths.value[0] || ''
+  addRuleConcatSeparator.value = ' '
+  addRuleTargetField.value = ''
+  addRuleNoSource.value = false
+  addRuleNoSourceDefaultRaw.value = ''
+}
+
+const closeAddRuleModal = () => {
+  showAddRuleModal.value = false
+  addRuleError.value = ''
+}
+
+const submitAddRule = () => {
+  addRuleError.value = ''
+  const targetField = addRuleTargetField.value.trim()
+  if (!targetField) {
+    addRuleError.value = 'Informe o nome do campo no target.'
+    return
+  }
+
+  if (mappingRows.value.some((item) => item.targetField === targetField)) {
+    addRuleError.value = 'Ja existe uma regra para esse campo target.'
+    return
+  }
+
+  if (addRuleMode.value === 'new') {
+    if (addRuleNoSource.value) {
+      const defaultRaw = addRuleNoSourceDefaultRaw.value.trim()
+      if (!defaultRaw) {
+        addRuleError.value = 'Informe o valor padrao para o campo novo.'
+        return
+      }
+
+      mappingRows.value.push({
+        id: nextRuleId(),
+        sourceField: '(novo)',
+        targetField,
+        editTargetName: true,
+        valueFromField: '',
+        noSource: true,
+        ruleType: 'direct',
+        concatLeftField: '',
+        concatRightField: '',
+        concatSeparator: ' ',
+        dbRefEnabled: false,
+        dbRefCollection: '',
+        dbRefForeignField: '_id',
+        defaultValueEnabled: true,
+        defaultValueRaw: addRuleNoSourceDefaultRaw.value,
+        isCustom: true,
+      })
+      closeAddRuleModal()
+      return
+    }
+
+    if (!sourceFieldPaths.value.includes(addRuleSourceField.value)) {
+      addRuleError.value = 'Campo de origem invalido.'
+      return
+    }
+
+    mappingRows.value.push({
+      id: nextRuleId(),
+      sourceField: addRuleSourceField.value,
+      targetField,
+      editTargetName: true,
+      valueFromField: addRuleSourceField.value,
+      noSource: false,
+      ruleType: 'direct',
+      concatLeftField: '',
+      concatRightField: '',
+      concatSeparator: ' ',
+      dbRefEnabled: false,
+      dbRefCollection: '',
+      dbRefForeignField: '_id',
+      defaultValueEnabled: false,
+      defaultValueRaw: '',
+      isCustom: true,
+    })
+    closeAddRuleModal()
+    return
+  }
+
+  if (!sourceFieldPaths.value.includes(addRuleConcatLeft.value) || !sourceFieldPaths.value.includes(addRuleConcatRight.value)) {
+    addRuleError.value = 'Campos para concatenacao invalidos.'
+    return
+  }
+
+  mappingRows.value.push({
+    id: nextRuleId(),
+    sourceField: `${addRuleConcatLeft.value} + ${addRuleConcatRight.value}`,
+    targetField,
+    editTargetName: true,
+    valueFromField: addRuleConcatLeft.value,
+    noSource: false,
+    ruleType: 'concat',
+    concatLeftField: addRuleConcatLeft.value,
+    concatRightField: addRuleConcatRight.value,
+    concatSeparator: addRuleConcatSeparator.value,
+    dbRefEnabled: false,
+    dbRefCollection: '',
+    dbRefForeignField: '_id',
+    defaultValueEnabled: false,
+    defaultValueRaw: '',
+    isCustom: true,
+  })
+  closeAddRuleModal()
+}
+
+const moveMappingRule = (rowIndex: number, direction: -1 | 1) => {
+  const targetIndex = rowIndex + direction
+  if (rowIndex < 0 || rowIndex >= mappingRows.value.length || targetIndex < 0 || targetIndex >= mappingRows.value.length) {
+    return
+  }
+
+  const [rule] = mappingRows.value.splice(rowIndex, 1)
+  if (!rule) {
+    return
+  }
+  mappingRows.value.splice(targetIndex, 0, rule)
+}
+
+const removeRule = (rule: MappingRule) => {
+  if (!rule.isCustom) {
+    rule.targetField = ''
+    rule.valueFromField = rule.sourceField
+    rule.dbRefEnabled = false
+    rule.dbRefCollection = ''
+    rule.dbRefForeignField = '_id'
+    rule.defaultValueEnabled = false
+    rule.defaultValueRaw = ''
+    rule.noSource = false
+    return
+  }
+  mappingRows.value = mappingRows.value.filter((item) => item !== rule)
+}
+
+const openDbRefModal = (rule: MappingRule) => {
+  dbRefEditingRule.value = rule
+  dbRefEnabledDraft.value = rule.dbRefEnabled
+  dbRefCollectionDraft.value = rule.dbRefCollection || ''
+  dbRefForeignFieldDraft.value = rule.dbRefForeignField || '_id'
+  dbRefError.value = ''
+  showDbRefModal.value = true
+}
+
+const closeDbRefModal = () => {
+  showDbRefModal.value = false
+  dbRefEditingRule.value = null
+  dbRefError.value = ''
+}
+
+const saveDbRefRule = () => {
+  const rule = dbRefEditingRule.value
+  if (!rule) {
+    closeDbRefModal()
+    return
+  }
+
+  if (dbRefEnabledDraft.value && !dbRefCollectionDraft.value.trim()) {
+    dbRefError.value = 'Informe a collection de referencia para DBRef.'
+    return
+  }
+
+  rule.dbRefEnabled = dbRefEnabledDraft.value
+  rule.dbRefCollection = dbRefCollectionDraft.value.trim()
+  rule.dbRefForeignField = (dbRefForeignFieldDraft.value || '_id').trim()
+  closeDbRefModal()
+}
+
+const openDefaultValueModal = (rule: MappingRule) => {
+  defaultValueEditingRule.value = rule
+  defaultValueEnabledDraft.value = rule.defaultValueEnabled
+  defaultValueRawDraft.value = rule.defaultValueRaw || ''
+  defaultValueError.value = ''
+  showDefaultValueModal.value = true
+}
+
+const closeDefaultValueModal = () => {
+  showDefaultValueModal.value = false
+  defaultValueEditingRule.value = null
+  defaultValueError.value = ''
+}
+
+const saveDefaultValueRule = () => {
+  const rule = defaultValueEditingRule.value
+  if (!rule) {
+    closeDefaultValueModal()
+    return
+  }
+
+  if (defaultValueEnabledDraft.value && !defaultValueRawDraft.value.trim()) {
+    defaultValueError.value = 'Informe o valor padrao para este campo.'
+    return
+  }
+
+  rule.defaultValueEnabled = defaultValueEnabledDraft.value
+  rule.defaultValueRaw = defaultValueRawDraft.value
+  closeDefaultValueModal()
+}
+
+const normalizeManualValue = (value: string) => {
+  const trimmedValue = value.trim()
+  if (trimmedValue === '') {
+    return ''
+  }
+
+  if (trimmedValue === 'true') {
+    return true
+  }
+
+  if (trimmedValue === 'false') {
+    return false
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(trimmedValue)) {
+    return Number(trimmedValue)
+  }
+
+  if (
+    (trimmedValue.startsWith('{') && trimmedValue.endsWith('}')) ||
+    (trimmedValue.startsWith('[') && trimmedValue.endsWith(']')) ||
+    (trimmedValue.startsWith('"') && trimmedValue.endsWith('"'))
+  ) {
+    try {
+      return JSON.parse(trimmedValue)
+    } catch {
+      return value
+    }
+  }
+
+  return value
+}
+
+const readValueByPath = (value: any, path: string) => {
+  return path.split('.').reduce((currentValue, segment) => {
+    if (currentValue === null || currentValue === undefined) {
+      return undefined
+    }
+    return currentValue[segment]
+  }, value)
+}
+
+const isTruthyStarred = (value: any) => {
+  if (typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return value !== 0
+  }
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes', 'y', 'on'].includes(value.trim().toLowerCase())
+  }
+  return Boolean(value)
+}
+
+const writeValueByPath = (target: Record<string, any>, path: string, value: any) => {
+  const segments = path.split('.')
+  let cursor = target
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index]
+    const isLastSegment = index === segments.length - 1
+
+    if (isLastSegment) {
+      cursor[segment] = value
+      return
+    }
+
+    if (!cursor[segment] || typeof cursor[segment] !== 'object') {
+      cursor[segment] = {}
+    }
+
+    cursor = cursor[segment]
+  }
+}
+
+const buildMappedDocument = (sourceDocument: Record<string, any>) => {
+  const mappedDocument: Record<string, any> = {}
+
+  for (const mapping of mappingRows.value) {
+    if (!mapping.targetField) {
+      continue
+    }
+
+    const computedValue = mapping.ruleType === 'concat'
+      ? [
+          readValueByPath(sourceDocument, mapping.concatLeftField),
+          readValueByPath(sourceDocument, mapping.concatRightField),
+        ]
+          .filter((item) => item !== null && item !== undefined)
+          .map((item) => String(item))
+          .join(mapping.concatSeparator)
+      : readValueByPath(sourceDocument, mapping.valueFromField || mapping.sourceField)
+
+    const targetField = mapping.targetField
+    const fieldValue = mapping.defaultValueEnabled
+      ? normalizeManualValue(mapping.defaultValueRaw)
+      : computedValue
+
+    if (mapping.dbRefEnabled && mapping.dbRefCollection) {
+      writeValueByPath(mappedDocument, targetField, {
+        $id: fieldValue,
+        $ref: mapping.dbRefCollection,
+      })
+    } else {
+      writeValueByPath(mappedDocument, targetField, fieldValue)
+    }
+  }
+
+  if (extractStarredsEnabled.value) {
+    const now = new Date().toISOString()
+    if (mappedDocument._class === undefined) {
+      mappedDocument._class = 'Favorites'
+    }
+    if (mappedDocument.createdAt === undefined) {
+      mappedDocument.createdAt = now
+    }
+    if (mappedDocument.updatedAt === undefined) {
+      mappedDocument.updatedAt = now
+    }
+  }
+
+  return mappedDocument
+}
+
+const buildMappedDocuments = (sourceDocument: Record<string, any>) => {
+  if (!extractStarredsEnabled.value) {
+    return [buildMappedDocument(sourceDocument)]
+  }
+
+  const starreds = readValueByPath(sourceDocument, 'starreds')
+  if (!Array.isArray(starreds)) {
+    return [buildMappedDocument(sourceDocument)]
+  }
+
+  return starreds
+    .filter((entry) => entry && isTruthyStarred(entry.starred))
+    .map((entry) => ({ ...sourceDocument, starreds: entry }))
+    .map((expandedSource) => buildMappedDocument(expandedSource))
+}
+
+const mapData = () => {
+  if (!sourceDocumentForMapping.value) {
+    mappedPreviewDocument.value = null
+    activeTab.value = 'preview'
+    return
+  }
+
+  const mappedDocs = buildMappedDocuments(sourceDocumentForMapping.value)
+  mappedPreviewDocument.value = mappedDocs.length > 0 ? mappedDocs[0] : null
+  activeTab.value = 'preview'
+}
+
+const normalizeJobStatus = (status: string) => {
+  if (JOB_STAGES.includes(status as (typeof JOB_STAGES)[number])) {
+    return status
+  }
+  if (status === 'running') {
+    return 'inserting_documents'
+  }
+  return status
+}
+
+const statusLabel = (status: string) => {
+  const normalized = normalizeJobStatus(status)
+  const labels: Record<string, string> = {
+    pending: 'pending',
+    loading_source: 'loading source',
+    mapping_fields: 'mapping fields',
+    inserting_documents: 'inserting documents',
+    done: 'done',
+    failed: 'failed',
+  }
+  return labels[normalized] || normalized
+}
+
+const stageLabel = (stage: string) => {
+  const labels: Record<string, string> = {
+    pending: 'Queue',
+    loading_source: 'Source load',
+    mapping_fields: 'Mapping',
+    inserting_documents: 'Insert',
+    done: 'Done',
+  }
+  return labels[stage] || stage
+}
+
+const stageState = (job: JobItem, stage: string) => {
+  const normalized = normalizeJobStatus(job.status)
+  const currentIdx = JOB_STAGES.indexOf(normalized as (typeof JOB_STAGES)[number])
+  const stageIdx = JOB_STAGES.indexOf(stage as (typeof JOB_STAGES)[number])
+
+  if (normalized === 'failed') {
+    return 'pending'
+  }
+
+  if (currentIdx === -1 || stageIdx === -1) {
+    return 'pending'
+  }
+
+  if (stageIdx < currentIdx) {
+    return 'done'
+  }
+
+  if (stageIdx === currentIdx) {
+    return normalized === 'done' ? 'done' : 'active'
+  }
+
+  return 'pending'
+}
+
+const jobNoOutputHint = (job: JobItem) => {
+  const result = job.result
+  if (!result) {
+    return ''
+  }
+
+  const processed = result.processed ?? 0
+  const inserted = result.inserted ?? 0
+  const merged = result.merged ?? 0
+  const skipped = result.skipped ?? 0
+
+  if (processed > 0 && inserted === 0 && merged === 0) {
+    if (skipped > 0) {
+      return 'Nenhum documento novo foi gravado. Todos foram ignorados (ex.: duplicidade de chave).'
+    }
+    return 'Nenhum documento foi gerado para insercao. Revise filtros/flatten e os campos mapeados (ex.: starreds.position e starreds.service).'
+  }
+
+  return ''
+}
+
+const hasActiveJobs = computed(() => jobs.value.some((job) => !['done', 'failed'].includes(normalizeJobStatus(job.status))))
+
+const stopJobsPolling = () => {
+  if (jobsPollTimer) {
+    clearInterval(jobsPollTimer)
+    jobsPollTimer = null
+  }
+}
+
+const startJobsPolling = () => {
+  if (jobsPollTimer) {
+    return
+  }
+  jobsPollTimer = setInterval(() => {
+    loadJobs(false)
+  }, 2000)
+}
+
+const buildMigrationConfig = () => {
+  const fieldMapping: Record<string, string> = {}
+  const manualMapping: Record<string, any> = {}
+  const concatRules: Array<{ sourceFields: string[]; targetField: string; separator: string }> = []
+  const dbRefRules: Array<{ targetField: string; fromCollection: string; foreignField: string }> = []
+  const flattenConfig: Array<{ field: string; mode: 'preserve' | 'explode' }> = []
+  const filterRules: Array<{ field: string; op: 'eq' | 'truthy'; value?: any }> = []
+
+  for (const row of mappingRows.value) {
+    const targetField = row.targetField.trim()
+    if (!targetField) {
+      continue
+    }
+
+    if (row.defaultValueEnabled) {
+      manualMapping[targetField] = normalizeManualValue(row.defaultValueRaw)
+      continue
+    }
+
+    if (row.ruleType === 'concat') {
+      concatRules.push({
+        sourceFields: [row.concatLeftField, row.concatRightField],
+        targetField,
+        separator: row.concatSeparator,
+      })
+      if (row.dbRefEnabled && row.dbRefCollection) {
+        dbRefRules.push({
+          targetField,
+          fromCollection: row.dbRefCollection,
+          foreignField: row.dbRefForeignField || '_id',
+        })
+      }
+      continue
+    }
+
+    const valueFromField = (row.valueFromField || row.sourceField).trim()
+    if (!valueFromField) {
+      continue
+    }
+
+    fieldMapping[valueFromField] = targetField
+    if (row.dbRefEnabled && row.dbRefCollection) {
+      dbRefRules.push({
+        targetField,
+        fromCollection: row.dbRefCollection,
+        foreignField: row.dbRefForeignField || '_id',
+      })
+    }
+  }
+
+  if (extractStarredsEnabled.value && hasStarredsArray.value) {
+    flattenConfig.push({ field: 'starreds', mode: 'explode' })
+    filterRules.push({ field: 'starreds.starred', op: 'eq', value: true })
+    if (manualMapping._class === undefined) {
+      manualMapping._class = 'Favorites'
+    }
+    const now = new Date().toISOString()
+    if (manualMapping.createdAt === undefined) {
+      manualMapping.createdAt = now
+    }
+    if (manualMapping.updatedAt === undefined) {
+      manualMapping.updatedAt = now
+    }
+  }
+
+  return {
+    migrationName: `Migracao ${new Date().toISOString()}`,
+    source: {
+      connectionString: buildMongoConnectionPayload(sourceConnection).connectionString,
+      database: sourceConnection.database,
+      collection: sourceConnection.collection,
+      authSource: buildMongoConnectionPayload(sourceConnection).authSource,
+    },
+    target: {
+      connectionString: buildMongoConnectionPayload(destinationConnection).connectionString,
+      database: destinationConnection.database,
+      collection: destinationConnection.collection,
+      authSource: buildMongoConnectionPayload(destinationConnection).authSource,
+    },
+    sourceBaseDocumentId: useSelectedBaseDocument.value ? (selectedSourceBaseDocumentId.value || null) : null,
+    fieldMapping,
+    manualMapping,
+    concatRules,
+    dbRefRules,
+    mergeByField: mergeDocumentsEnabled.value ? mergeByField.value.trim() : null,
+    lookups: [],
+    flattenConfig,
+    filterRules,
+  }
+}
+
+const buildKeycloakMigrationConfig = () => {
+  const fieldMapping: Record<string, string> = {}
+  for (const row of mappingRows.value) {
+    const sourceField = (row.valueFromField || row.sourceField || '').trim()
+    const targetField = (row.targetField || '').trim()
+    if (!sourceField || !targetField || row.ruleType !== 'direct' || row.noSource) {
+      continue
+    }
+    fieldMapping[sourceField] = targetField
+  }
+
+  return {
+    migrationType: 'keycloak',
+    migrationName: `Migracao Keycloak ${new Date().toISOString()}`,
+    source: buildKeycloakPayload(sourceKeycloakConnection),
+    target: buildKeycloakPayload(destinationKeycloakConnection),
+    usernameSourceField: keycloakUsernameSourceField.value || 'username',
+    fieldMapping,
+  }
+}
+
+const loadJobs = async (showLoading = true) => {
+  if (showLoading) {
+    jobsLoading.value = true
+  }
+  try {
+    const response = await axios.get('/api/jobs/')
+    jobs.value = response.data || []
+  } catch {
+    // Keep previous jobs if polling fails.
+  } finally {
+    if (showLoading) {
+      jobsLoading.value = false
+    }
+  }
+}
+
+const rerunJob = async (jobId: string) => {
+  rerunJobLoadingId.value = jobId
+  try {
+    await axios.post(`/api/jobs/${jobId}/rerun`)
+    await loadJobs(false)
+  } catch (error: any) {
+    createJobError.value = error.response?.data?.detail || error.message || 'Falha ao reenviar o job.'
+    activeTab.value = 'preview'
+  } finally {
+    rerunJobLoadingId.value = ''
+  }
+}
+
+const deleteJob = async (jobId: string) => {
+  if (!window.confirm('Remover este job da lista?')) {
+    return
+  }
+
+  deleteJobLoadingId.value = jobId
+  try {
+    await axios.delete(`/api/jobs/${jobId}`)
+    jobs.value = jobs.value.filter((job) => job.jobId !== jobId)
+  } catch (error: any) {
+    createJobError.value = error.response?.data?.detail || error.message || 'Falha ao remover o job.'
+    activeTab.value = 'preview'
+  } finally {
+    deleteJobLoadingId.value = ''
+  }
+}
+
+const createInsertJob = async () => {
+  createJobError.value = ''
+
+  if (selectedSourceEngine.value === 'Keycloak' && selectedTargetEngine.value === 'Keycloak') {
+    if (!sourceKeycloakConnection.connected || !destinationKeycloakConnection.connected) {
+      createJobError.value = 'Conecte e valide source e target Keycloak antes de executar.'
+      return
+    }
+    if (!keycloakUsernameSourceField.value.trim()) {
+      createJobError.value = 'Selecione o campo de origem para username.'
+      return
+    }
+
+    createJobLoading.value = true
+    try {
+      await axios.post('/api/keycloak/execute', {
+        config: buildKeycloakMigrationConfig(),
+        maxDocuments: insertMode.value === 'one' ? 1 : null,
+      })
+      await loadJobs(false)
+      activeTab.value = 'jobs'
+      startJobsPolling()
+    } catch (error: any) {
+      createJobError.value = error.response?.data?.detail || error.message || 'Falha ao criar job de migracao Keycloak.'
+    } finally {
+      createJobLoading.value = false
+    }
+    return
+  }
+
+  if (!sourceConnection.database || !sourceConnection.collection) {
+    createJobError.value = 'Selecione database e collection de origem.'
+    return
+  }
+  if (!destinationConnection.database || !destinationConnection.collection) {
+    createJobError.value = 'Selecione database e collection de destino.'
+    return
+  }
+
+  const config = buildMigrationConfig()
+  if (Object.keys(config.fieldMapping).length === 0 && Object.keys(config.manualMapping).length === 0 && config.concatRules.length === 0) {
+    createJobError.value = 'Configure ao menos um mapeamento antes de inserir.'
+    return
+  }
+  if (mergeDocumentsEnabled.value && !mergeByField.value.trim()) {
+    createJobError.value = 'Selecione o campo de mesclagem.'
+    return
+  }
+
+  createJobLoading.value = true
+  try {
+    await axios.post('/api/migration/execute', {
+      config,
+      maxDocuments: insertMode.value === 'one' ? 1 : null,
+    })
+    await loadJobs(false)
+    activeTab.value = 'jobs'
+    startJobsPolling()
+  } catch (error: any) {
+    createJobError.value = error.response?.data?.detail || error.message || 'Falha ao criar job de insercao.'
+  } finally {
+    createJobLoading.value = false
+  }
+}
+
+const formatTemplateDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return date.toLocaleString('pt-BR')
+}
+
+const loadTemplates = async () => {
+  templatesLoading.value = true
+  try {
+    const response = await axios.get('/api/templates/')
+    templates.value = response.data || []
+  } catch (error: any) {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = error.response?.data?.detail || error.message || 'Falha ao carregar templates.'
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+const buildTemplatePayloadFromCurrent = (): TemplatePayload => {
+  const config = buildMigrationConfig()
+  return {
+    migrationName: config.migrationName,
+    source: {
+      database: config.source.database,
+      collection: config.source.collection,
+    },
+    target: {
+      database: config.target.database,
+      collection: config.target.collection,
+    },
+    sourceBaseDocumentId: config.sourceBaseDocumentId,
+    fieldMapping: config.fieldMapping,
+    manualMapping: config.manualMapping,
+    concatRules: config.concatRules,
+    dbRefRules: config.dbRefRules,
+    mergeByField: config.mergeByField,
+    lookups: config.lookups,
+    flattenConfig: config.flattenConfig,
+    filterRules: config.filterRules,
+  }
+}
+
+const saveCurrentTemplate = async () => {
+  templatesFeedback.value = ''
+  if (selectedSourceEngine.value === 'Keycloak' || selectedTargetEngine.value === 'Keycloak') {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = 'Templates para fluxo Keycloak ainda nao estao disponiveis nesta etapa.'
+    return
+  }
+  const name = templateForm.name.trim()
+  if (!name) {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = 'Informe o nome do template.'
+    return
+  }
+
+  const payload = buildTemplatePayloadFromCurrent()
+  if (Object.keys(payload.fieldMapping).length === 0 && Object.keys(payload.manualMapping).length === 0 && payload.concatRules.length === 0) {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = 'Defina ao menos um mapeamento antes de salvar o template.'
+    return
+  }
+
+  templatesSaving.value = true
+  try {
+    await axios.post('/api/templates/', {
+      name,
+      description: templateForm.description.trim() || null,
+      payload,
+    })
+    templatesFeedbackType.value = 'success'
+    templatesFeedback.value = 'Template salvo com sucesso.'
+    await loadTemplates()
+  } catch (error: any) {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = error.response?.data?.detail || error.message || 'Falha ao salvar template.'
+  } finally {
+    templatesSaving.value = false
+  }
+}
+
+const buildDbRefRuleMap = (
+  dbRefRules: Array<{ targetField: string; fromCollection: string; foreignField: string }>
+) => new Map(dbRefRules.map((rule) => [rule.targetField, rule]))
+
+const applyTemplatePayload = (payload: TemplatePayload) => {
+  sourceConnection.database = payload.source.database || ''
+  sourceConnection.collection = payload.source.collection || ''
+  destinationConnection.database = payload.target.database || ''
+  destinationConnection.collection = payload.target.collection || ''
+
+  mergeByField.value = payload.mergeByField || ''
+  mergeDocumentsEnabled.value = Boolean(payload.mergeByField)
+
+  const hasStarredsFlatten = payload.flattenConfig.some((rule) => rule.field === 'starreds' && rule.mode === 'explode')
+  const hasStarredsFilter = payload.filterRules.some((rule) => rule.field === 'starreds.starred' && rule.op === 'eq' && rule.value === true)
+  extractStarredsEnabled.value = hasStarredsFlatten && hasStarredsFilter
+
+  const dbRefByTarget = buildDbRefRuleMap(payload.dbRefRules || [])
+  const importedRows: MappingRule[] = []
+
+  for (const [sourceField, targetField] of Object.entries(payload.fieldMapping || {})) {
+    const dbRefRule = dbRefByTarget.get(targetField)
+    importedRows.push({
+      id: nextRuleId(),
+      sourceField,
+      targetField,
+      editTargetName: sourceField !== targetField,
+      valueFromField: sourceField,
+      noSource: false,
+      ruleType: 'direct',
+      concatLeftField: '',
+      concatRightField: '',
+      concatSeparator: ' ',
+      dbRefEnabled: Boolean(dbRefRule),
+      dbRefCollection: dbRefRule?.fromCollection || '',
+      dbRefForeignField: dbRefRule?.foreignField || '_id',
+      defaultValueEnabled: false,
+      defaultValueRaw: '',
+      isCustom: false,
+    })
+  }
+
+  for (const [targetField, manualValue] of Object.entries(payload.manualMapping || {})) {
+    importedRows.push({
+      id: nextRuleId(),
+      sourceField: '(novo)',
+      targetField,
+      editTargetName: true,
+      valueFromField: '',
+      noSource: true,
+      ruleType: 'direct',
+      concatLeftField: '',
+      concatRightField: '',
+      concatSeparator: ' ',
+      dbRefEnabled: false,
+      dbRefCollection: '',
+      dbRefForeignField: '_id',
+      defaultValueEnabled: true,
+      defaultValueRaw: typeof manualValue === 'string' ? manualValue : JSON.stringify(manualValue),
+      isCustom: true,
+    })
+  }
+
+  for (const concatRule of payload.concatRules || []) {
+    const targetField = concatRule.targetField
+    const dbRefRule = dbRefByTarget.get(targetField)
+    importedRows.push({
+      id: nextRuleId(),
+      sourceField: `${concatRule.sourceFields[0] || ''} + ${concatRule.sourceFields[1] || ''}`,
+      targetField,
+      editTargetName: true,
+      valueFromField: concatRule.sourceFields[0] || '',
+      noSource: false,
+      ruleType: 'concat',
+      concatLeftField: concatRule.sourceFields[0] || '',
+      concatRightField: concatRule.sourceFields[1] || '',
+      concatSeparator: concatRule.separator ?? ' ',
+      dbRefEnabled: Boolean(dbRefRule),
+      dbRefCollection: dbRefRule?.fromCollection || '',
+      dbRefForeignField: dbRefRule?.foreignField || '_id',
+      defaultValueEnabled: false,
+      defaultValueRaw: '',
+      isCustom: true,
+    })
+  }
+
+  mappingRows.value = importedRows
+
+  const discoveredSourceFields = Array.from(
+    new Set(
+      importedRows
+        .flatMap((row) => (row.ruleType === 'concat' ? [row.concatLeftField, row.concatRightField] : [row.valueFromField || row.sourceField]))
+        .map((field) => field.trim())
+        .filter((field) => field && field !== '(novo)')
+    )
+  )
+  if (sourceFieldPaths.value.length === 0) {
+    sourceFieldPaths.value = discoveredSourceFields
+  }
+
+  const discoveredTargetFields = Array.from(new Set(importedRows.map((row) => row.targetField.trim()).filter((field) => field.length > 0)))
+  if (destinationFieldPaths.value.length === 0) {
+    destinationFieldPaths.value = discoveredTargetFields
+  }
+
+  const savedDocumentId = payload.sourceBaseDocumentId || ''
+  selectedSourceBaseDocumentId.value = savedDocumentId
+  useSelectedBaseDocument.value = Boolean(savedDocumentId)
+}
+
+const loadSourceBaseDocumentById = async (documentId: string) => {
+  if (!documentId || !sourceConnection.database || !sourceConnection.collection) {
+    return
+  }
+  try {
+    const response = await axios.post('/api/explore/document', {
+      ...buildMongoConnectionPayload(sourceConnection),
+      database: sourceConnection.database,
+      collection: sourceConnection.collection,
+      documentId,
+    })
+    sourceBaseDocument.value = response.data.item || null
+  } catch {
+    sourceBaseDocument.value = null
+  }
+}
+
+const applyTemplate = async (templateItem: TemplateItem) => {
+  applyTemplatePayload(templateItem.payload)
+  templateForm.name = templateItem.name
+  templateForm.description = templateItem.description || ''
+
+  if (selectedSourceBaseDocumentId.value) {
+    const fromSampleList = sourceSamples.value.find((item) => getDocumentId(item) === selectedSourceBaseDocumentId.value)
+    if (fromSampleList) {
+      sourceBaseDocument.value = fromSampleList
+    } else {
+      await loadSourceBaseDocumentById(selectedSourceBaseDocumentId.value)
+    }
+  } else {
+    sourceBaseDocument.value = null
+  }
+
+  syncMappingsFromSamples()
+  mappedPreviewDocument.value = sourceDocumentForMapping.value ? buildMappedDocument(sourceDocumentForMapping.value) : null
+  templatesFeedbackType.value = 'success'
+  templatesFeedback.value = 'Template carregado no fluxo atual.'
+  activeTab.value = 'connections'
+}
+
+const deleteTemplate = async (templateId: number) => {
+  if (!window.confirm('Excluir este template?')) {
+    return
+  }
+  templatesDeletingId.value = templateId
+  try {
+    await axios.delete(`/api/templates/${templateId}`)
+    templates.value = templates.value.filter((item) => item.templateId !== templateId)
+  } catch (error: any) {
+    templatesFeedbackType.value = 'error'
+    templatesFeedback.value = error.response?.data?.detail || error.message || 'Falha ao excluir template.'
+  } finally {
+    templatesDeletingId.value = null
+  }
+}
+
+const openTemplatesForCurrentMigration = async () => {
+  activeTab.value = 'templates'
+  if (!templateForm.name.trim()) {
+    templateForm.name = `Template ${new Date().toLocaleString('pt-BR')}`
+  }
+  await loadTemplates()
+}
+
+watch(
+  () => activeTab.value,
+  (tab) => {
+    if (tab === 'templates') {
+      loadTemplates()
+    }
+    if (tab === 'jobs') {
+      loadJobs(true)
+      startJobsPolling()
+      return
+    }
+    if (!hasActiveJobs.value) {
+      stopJobsPolling()
+    }
+  }
+)
+
+watch(
+  () => useSelectedBaseDocument.value,
+  (enabled) => {
+    if (!enabled) {
+      selectedSourceBaseDocumentId.value = ''
+      sourceBaseDocument.value = null
+      syncMappingsFromSamples()
+      return
+    }
+
+    if (sourceSamples.value.length > 0 && !sourceBaseDocument.value) {
+      const firstWithId = sourceSamples.value.find((item) => getDocumentId(item))
+      if (firstWithId) {
+        selectSourceBaseDocument(firstWithId)
+      }
+    }
+  }
+)
+
+watch(
+  () => [sourceConnection.database, sourceConnection.collection],
+  () => {
+    selectedSourceBaseDocumentId.value = ''
+    sourceBaseDocument.value = null
+    useSelectedBaseDocument.value = false
+  }
+)
+
+watch(
+  () => hasActiveJobs.value,
+  (active) => {
+    if (active) {
+      startJobsPolling()
+      return
+    }
+    if (activeTab.value !== 'jobs') {
+      stopJobsPolling()
+    }
+  }
+)
+
+onBeforeUnmount(() => {
+  stopJobsPolling()
+})
+
+const loadSourceDatabases = async () => {
+  sourceDatabasesLoading.value = true
+  try {
+    const resp = await axios.post('/api/explore/databases', {
+      ...buildMongoConnectionPayload(sourceConnection),
+      database: 'admin',
+      collection: 'admin',
+    })
+    sourceDatabases.value = resp.data.databases || []
+  } catch (err: any) {
+    sourceConnection.message = 'Erro ao carregar bancos de dados.'
+    sourceConnection.status = 'error'
+  } finally {
+    sourceDatabasesLoading.value = false
+  }
+}
+
+const loadSourceCollections = async () => {
+  sourceCollectionsLoading.value = true
+  try {
+    const resp = await axios.post('/api/explore/collections', {
+      ...buildMongoConnectionPayload(sourceConnection),
+      database: sourceConnection.database,
+      collection: 'admin',
+    })
+    sourceCollections.value = resp.data.collections || []
+  } catch (err: any) {
+    sourceConnection.message = 'Erro ao carregar coleções.'
+    sourceConnection.status = 'error'
+  } finally {
+    sourceCollectionsLoading.value = false
+  }
+}
+
+const loadDestinationDatabases = async () => {
+  destinationDatabasesLoading.value = true
+  try {
+    const resp = await axios.post('/api/explore/databases', {
+      ...buildMongoConnectionPayload(destinationConnection),
+      database: 'admin',
+      collection: 'admin',
+    })
+    destinationDatabases.value = resp.data.databases || []
+  } catch (err: any) {
+    destinationConnection.message = 'Erro ao carregar bancos de dados.'
+    destinationConnection.status = 'error'
+  } finally {
+    destinationDatabasesLoading.value = false
+  }
+}
+
+const loadDestinationCollections = async () => {
+  destinationCollectionsLoading.value = true
+  try {
+    const resp = await axios.post('/api/explore/collections', {
+      ...buildMongoConnectionPayload(destinationConnection),
+      database: destinationConnection.database,
+      collection: 'admin',
+    })
+    destinationCollections.value = resp.data.collections || []
+  } catch (err: any) {
+    destinationConnection.message = 'Erro ao carregar coleções.'
+    destinationConnection.status = 'error'
+  } finally {
+    destinationCollectionsLoading.value = false
+  }
+}
+
+const viewSourceSample = async () => {
+  sourceSamplesLoading.value = true
+  sourceSamples.value = []
+  sourceBaseDocument.value = null
+  const previouslySelectedId = selectedSourceBaseDocumentId.value
+  selectedSourceBaseDocumentId.value = ''
+  try {
+    const resp = await axios.post('/api/explore/sample', buildMongoConnectionPayload(sourceConnection))
+    sourceSamples.value = resp.data.items || []
+
+    if (useSelectedBaseDocument.value && previouslySelectedId) {
+      const matching = sourceSamples.value.find((item) => getDocumentId(item) === previouslySelectedId)
+      if (matching) {
+        selectSourceBaseDocument(matching)
+      }
+    }
+
+    syncMappingsFromSamples()
+    if (sourceDocumentForMapping.value) {
+      const mappedDocs = buildMappedDocuments(sourceDocumentForMapping.value)
+      mappedPreviewDocument.value = mappedDocs.length > 0 ? mappedDocs[0] : null
+    }
+  } catch (err: any) {
+    sourceConnection.message = err.response?.data?.detail || err.message || 'Erro ao buscar documentos.'
+    sourceConnection.status = 'error'
+  } finally {
+    sourceSamplesLoading.value = false
+  }
+}
+
+const viewDestinationSample = async () => {
+  destinationSamplesLoading.value = true
+  destinationSamples.value = []
+  try {
+    const resp = await axios.post('/api/explore/sample', buildMongoConnectionPayload(destinationConnection))
+    destinationSamples.value = resp.data.items || []
+    syncMappingsFromSamples()
+    if (sourceDocumentForMapping.value) {
+      const mappedDocs = buildMappedDocuments(sourceDocumentForMapping.value)
+      mappedPreviewDocument.value = mappedDocs.length > 0 ? mappedDocs[0] : null
+    }
+  } catch (err: any) {
+    destinationConnection.message = err.response?.data?.detail || err.message || 'Erro ao buscar documentos.'
+    destinationConnection.status = 'error'
+  } finally {
+    destinationSamplesLoading.value = false
+  }
+}
+</script>
+
+<style>
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #0f172a;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+#app {
+  min-height: 100vh;
+}
+</style>
+
+<style scoped>
+#app {
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, rgba(6, 182, 212, 0.08), transparent 35%), #0f172a;
+  color: #f8fafc;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.global-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.global-sidebar {
+  background: #0b1220;
+  border-right: 1px solid #334155;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.global-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.global-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #052e16;
+}
+
+.global-logo-image {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.22));
+}
+
+.global-logo small {
+  display: block;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+}
+
+.global-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.global-nav-item {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.global-nav-item.active {
+  color: #dcfce7;
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.global-sidebar-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.global-env,
+.global-user {
+  border: 1px solid #334155;
+  background: #111827;
+  border-radius: 10px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  padding: 9px;
+}
+
+.global-main {
+  position: relative;
+}
+
+.global-main-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 10px 14px 8px;
+  display: grid;
+  gap: 10px;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.86) 72%, rgba(15, 23, 42, 0) 100%);
+}
+
+.global-topbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.global-topbar-actions-standalone {
+  justify-content: flex-end;
+}
+
+.migration-flow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+
+.migration-flow-copy h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.migration-flow-copy p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.migration-flow-stepper {
+  flex: 1;
+}
+
+.global-icon-button {
+  border: 1px solid #334155;
+  border-radius: 9px;
+  background: #111827;
+  color: #cbd5e1;
+  padding: 7px 10px;
+}
+
+.global-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.header p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tab {
+  padding: 10px 16px;
+  border: 1px solid #334155;
+  border-radius: 9999px;
+  background: #111827;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab.active {
+  background: rgba(34, 197, 94, 0.18);
+  color: #dcfce7;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.content {
+  display: grid;
+  gap: 20px;
+  padding: 8px 14px 14px;
+}
+
+.panel {
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.dashboard-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.dashboard-topbar h2 {
+  margin: 0;
+}
+
+.dashboard-topbar p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.dashboard-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.dashboard-metric-card {
+  border: 1px solid #334155;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-label {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dashboard-metric-card strong {
+  font-size: 1.42rem;
+  line-height: 1.1;
+}
+
+.dashboard-metric-card span {
+  color: #67e8f9;
+  font-size: 0.82rem;
+}
+
+.dashboard-middle-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.dashboard-active-card,
+.dashboard-health-card,
+.dashboard-jobs-card,
+.dashboard-issues-card,
+.dashboard-actions-card {
+  border: 1px solid #334155;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.dashboard-card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-card-title-row h3 {
+  margin: 0;
+}
+
+.dashboard-flow {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.84rem;
+}
+
+.dashboard-progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.dashboard-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #06b6d4 100%);
+}
+
+.dashboard-progress-text {
+  margin: 6px 0 0;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.dashboard-kpi-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.dashboard-kpi-grid div {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0f172a;
+  padding: 8px 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-kpi-grid span {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.dashboard-kpi-grid strong {
+  font-size: 0.92rem;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dashboard-health-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-health-list li {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0f172a;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 0.84rem;
+}
+
+.dashboard-health-list em {
+  color: #94a3b8;
+  font-style: normal;
+  margin-left: auto;
+  font-size: 0.78rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot.ok { background: #22c55e; }
+.dot.warn { background: #f59e0b; }
+.dot.err { background: #ef4444; }
+
+.dashboard-jobs-card {
+  margin-bottom: 10px;
+}
+
+.dashboard-table-wrap {
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 8px;
+  border-bottom: 1px solid #334155;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.dashboard-table th {
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dashboard-issues-card ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: #f1f5f9;
+}
+
+.dashboard-quick-actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard-activity-chart {
+  margin-top: 12px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 10px;
+  background: #0f172a;
+}
+
+.dashboard-activity-chart h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+
+.dashboard-chart-bars {
+  margin-top: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dashboard-chart-bar-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.dashboard-chart-bar {
+  width: 20px;
+  height: 72px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.dashboard-chart-bar .bar-ok {
+  display: block;
+  width: 100%;
+  background: #22c55e;
+}
+
+.dashboard-chart-bar .bar-warn {
+  display: block;
+  width: 100%;
+  background: #f59e0b;
+}
+
+.dashboard-chart-bar-wrap small {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.engines-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.engines-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.engines-header h2 {
+  margin: 0;
+}
+
+.engines-header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.engines-path-card,
+.engines-available-card {
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  padding: 14px;
+}
+
+.engines-path-card h3,
+.engines-available-card h3 {
+  margin: 0;
+}
+
+.engines-path-row {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.engine-selected-card {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.engine-brand-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.engine-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.engine-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: rgba(147, 51, 234, 0.15);
+  color: #d8b4fe;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  white-space: nowrap;
+}
+
+.engine-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.engine-title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.engine-path-image {
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.8);
+  object-fit: contain;
+  padding: 6px;
+}
+
+.engine-path-glyph {
+  width: 58px;
+  height: 58px;
+  font-size: 1.45rem;
+}
+
+.engine-brand-logo,
+.engine-brand-glyph {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.engine-brand-logo {
+  object-fit: contain;
+  padding: 3px;
+}
+
+.engine-brand-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.engine-selected-card h4 {
+  margin: 2px 0;
+}
+
+.engine-selected-card p {
+  margin: 0;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.engine-selected-card small {
+  color: #94a3b8;
+}
+
+.engine-selected-card.source {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.engine-selected-card.target {
+  border-color: rgba(34, 211, 238, 0.85);
+  background: linear-gradient(145deg, rgba(8, 145, 178, 0.42) 0%, rgba(30, 58, 138, 0.55) 52%, rgba(15, 23, 42, 0.98) 100%);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25) inset, 0 10px 28px rgba(6, 182, 212, 0.22);
+}
+
+.engine-role-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.engine-role-badge.source {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+}
+
+.engine-role-badge.target {
+  background: rgba(6, 182, 212, 0.16);
+  color: #67e8f9;
+}
+
+.engine-path-arrow {
+  text-align: center;
+  color: #67e8f9;
+  font-size: 1.6rem;
+  text-shadow: 0 0 18px rgba(6, 182, 212, 0.45);
+}
+
+.engine-compatibility {
+  margin-top: 12px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 10px;
+  background: #0f172a;
+}
+
+.engine-compatibility h4 {
+  margin: 0;
+}
+
+.engine-compatibility ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.engines-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.engine-card {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.engine-card.selected {
+  border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2) inset;
+}
+
+.engine-card.disabled {
+  opacity: 0.66;
+}
+
+.engine-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.engine-card h4 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.engine-card p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.engine-card small {
+  color: #94a3b8;
+}
+
+.engine-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.engine-tags span {
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+
+.engine-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.engine-action-button.active.source {
+  background: #0ea5e9;
+  border-color: #0284c7;
+  color: #e0f2fe;
+  box-shadow: 0 10px 22px rgba(14, 165, 233, 0.32);
+}
+
+.engine-action-button.active.target {
+  background: #22c55e;
+  border-color: #16a34a;
+  color: #dcfce7;
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.3);
+}
+
+.connection-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.connections-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.connections-header-row h2 {
+  margin: 0;
+}
+
+.migration-mode-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.migration-mode-text {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.migration-mode-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.migration-mode-option {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.migration-mode-option.active {
+  color: #e2e8f0;
+}
+
+.migration-mode-control .migration-mode-switch {
+  gap: 0;
+}
+
+.connection-inline-status {
+  margin: 0;
+}
+
+.connections-engine-note {
+  margin: 0 0 10px;
+  color: #94a3b8;
+}
+
+.migration-mode-switch.is-on .auth-switch-track {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.card {
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.form-card label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.connection-field-label {
+  display: block;
+}
+
+.connection-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-switch {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.auth-switch-label {
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+.auth-switch-track {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d1d5db;
+  border: 2px solid #8b8f97;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.auth-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f8fafc;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-switch.is-on .auth-switch-track {
+  background: #35d063;
+  border-color: #35d063;
+}
+
+.auth-switch.is-on .auth-switch-track::after {
+  transform: translateX(22px);
+}
+
+.auth-switch:focus-visible .auth-switch-track {
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.35);
+}
+
+.form-card input {
+  width: 98%;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  margin-top: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.example-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #94a3b8;
+}
+
+.example-list li {
+  margin-bottom: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid #334155;
+  padding: 12px 8px;
+}
+
+th {
+  color: #94a3b8;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #22c55e;
+  color: #052e16;
+}
+
+.status-chip.success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+  border-radius: 10px;
+  padding: 5px 5px 5px 10px;
+  width: 40%;
+  margin-top: 10px;
+}
+
+.form-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+}
+
+.primary-button.secondary {
+  background: #111827;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  margin-top: 6px;
+}
+
+.primary-button.secondary:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.samples-list {
+  margin-top: 16px;
+  padding: 12px;
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.samples-list h4 {
+  margin: 0 0 12px 0;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.samples-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.sample-item {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 0.85rem;
+}
+
+.sample-item pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #cbd5e1;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  line-height: 1.4;
+}
+
+.mapping-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-bottom: 18px;
+}
+
+.mapping-card {
+  min-height: 100%;
+}
+
+.mapping-source-list,
+.mapping-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mapping-source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.mapping-lock {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.mapping-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.mapping-row.matched {
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.06);
+}
+
+.mapping-row.manual {
+  border-color: rgba(249, 115, 22, 0.35);
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.06);
+}
+
+.mapping-row.unmapped {
+  border-style: dashed;
+}
+
+.mapping-source-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mapping-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.mapping-checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.mapping-manual-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.95rem;
+}
+
+.mapping-manual-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.mapping-empty {
+  margin: 12px 0 0;
+  color: #64748b;
+}
+
+.mapping-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mapping-summary-item.matched {
+  color: #1d4ed8;
+}
+
+.mapping-summary-item.manual {
+  color: #c2410c;
+}
+
+.panel-wizard-header {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.panel-wizard-header h2 {
+  margin: 0;
+}
+
+.panel-wizard-header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.compact-stepper {
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+}
+
+.mapping-action {
+  align-self: flex-end;
+}
+
+.stage-nav {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.connections-next-hint {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 0.86rem;
+}
+
+.preview-panel {
+  overflow: hidden;
+}
+
+.preview-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.preview-header-enterprise {
+  padding: 14px 16px;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+}
+
+.preview-header h2,
+.preview-card h3 {
+  margin: 0;
+}
+
+.preview-header p {
+  margin: 6px 0 0;
+  color: #94a3b8;
+}
+
+.preview-stage {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+}
+
+.preview-flow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.preview-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.preview-actions h3 {
+  margin: 0;
+}
+
+.preview-actions p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.preview-warning-text {
+  color: #fbbf24;
+  font-size: 0.82rem;
+}
+
+.preview-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.preview-actions-row label {
+  min-width: 220px;
+  flex: 1;
+}
+
+.preview-merge-toggle {
+  min-width: 240px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.jobs-header h2 {
+  margin: 0;
+}
+
+.job-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-rerun-button {
+  margin-top: 0;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
+
+.job-delete-button {
+  margin-top: 0;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
+
+.jobs-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.job-card {
+  display: grid;
+  gap: 10px;
+}
+
+.job-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.job-header h3 {
+  margin: 0;
+  font-size: 1rem;
+
+.job-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-rerun-button {
+  margin-top: 0;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
+}
+
+.job-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.job-status.pending,
+.job-status.loading_source,
+.job-status.mapping_fields,
+.job-status.inserting_documents {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.job-status.done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.job-status.failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.job-progress-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.job-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #0ea5e9 100%);
+  transition: width 0.3s ease;
+}
+
+.job-progress-text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.job-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.job-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #dbe4f0;
+  background: #ffffff;
+}
+
+.job-step.active {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(219, 234, 254, 0.5);
+}
+
+.job-step.done {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(209, 250, 229, 0.45);
+}
+
+.job-step-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.job-step-done {
+  font-size: 0.74rem;
+  color: #047857;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.job-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #93c5fd;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin-job 0.8s linear infinite;
+}
+
+@keyframes spin-job {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.job-result p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #334155;
+}
+
+.job-error {
+  color: #b91c1c !important;
+}
+
+.job-hint.warning {
+  color: #92400e !important;
+  font-weight: 600;
+}
+
+.jobs-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.jobs-controls .form-select {
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+  color: #cbd5e1;
+}
+
+.jobs-pagination {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #334155;
+  display: grid;
+  gap: 14px;
+}
+
+.pagination-info {
+  font-size: 0.84rem;
+  color: #94a3b8;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pagination-controls label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.84rem;
+  color: #cbd5e1;
+}
+
+.pagination-controls .form-select {
+  padding: 6px 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #111827;
+  color: #cbd5e1;
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.pagination-button {
+  padding: 8px 12px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #111827;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.84rem;
+  transition: all 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: #1f2937;
+  border-color: #475569;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-text {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  min-width: 120px;
+  text-align: center;
+}
+
+.preview-card {
+  position: relative;
+  min-height: 100%;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #334155;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.35);
+}
+
+.preview-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.4), rgba(34, 197, 94, 0.22));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.preview-card.source {
+  align-self: stretch;
+}
+
+.preview-card.target {
+  align-self: stretch;
+}
+
+.preview-card-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  background: rgba(6, 182, 212, 0.12);
+  color: #67e8f9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.preview-card-badge.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+}
+
+.preview-field-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.preview-field-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #111827;
+}
+
+.preview-field-row.source-row {
+  background: #0f172a;
+}
+
+.preview-field-row.mapped-row {
+  border-color: rgba(6, 182, 212, 0.3);
+  background: rgba(8, 47, 73, 0.48);
+}
+
+.preview-field-row.manual-row {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(69, 39, 9, 0.55);
+}
+
+.preview-field-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preview-field-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #f8fafc;
+  word-break: break-word;
+}
+
+.preview-field-value {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+  word-break: break-word;
+}
+
+.preview-field-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.preview-field-tag.mapped {
+  background: rgba(6, 182, 212, 0.12);
+  color: #67e8f9;
+}
+
+.preview-field-tag.manual {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+.preview-footer-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.wizard-panel {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.wizard-shell {
+  min-height: 100%;
+  background: #0f172a;
+  color: #f8fafc;
+  border: none;
+  border-radius: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.wizard-sidebar {
+  background: #0b1220;
+  border-right: 1px solid #334155;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wizard-logo {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.wizard-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #031308;
+}
+
+.wizard-logo small {
+  display: block;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+}
+
+.wizard-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.wizard-nav-item {
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  padding: 9px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.wizard-nav-item.active {
+  color: #dcfce7;
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.wizard-sidebar-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-env,
+.wizard-user {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  background: rgba(17, 24, 39, 0.8);
+}
+
+.wizard-main {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  background: radial-gradient(circle at 30% 0%, rgba(6, 182, 212, 0.07), transparent 36%), #0f172a;
+}
+
+.wizard-topbar {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wizard-topbar h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.wizard-topbar-left,
+.wizard-topbar-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.wizard-icon-button {
+  border: 1px solid #334155;
+  background: rgba(31, 41, 55, 0.9);
+  color: #cbd5e1;
+  border-radius: 9px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.wizard-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+}
+
+.wizard-stepper {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.wizard-step-bullet {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid #334155;
+  display: grid;
+  place-items: center;
+}
+
+.wizard-step.completed .wizard-step-bullet,
+.wizard-step.active .wizard-step-bullet {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #052e16;
+}
+
+.wizard-step.active {
+  color: #dcfce7;
+}
+
+.wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.wizard-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.wizard-header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.wizard-connections {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.wizard-conn-card {
+  min-width: 170px;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #111827, #1f2937);
+  display: grid;
+  gap: 2px;
+}
+
+.wizard-conn-card-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizard-conn-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.wizard-conn-glyph {
+  font-size: 0.85rem;
+}
+
+.wizard-conn-card small {
+  color: #22c55e;
+}
+
+.wizard-conn-card span {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.wizard-conn-card.target small {
+  color: #06b6d4;
+}
+
+.wizard-conn-arrow {
+  color: #94a3b8;
+}
+
+.wizard-upper-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 2.8fr) minmax(180px, 0.6fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.wizard-upper-grid > .wizard-card,
+.wizard-lower-grid > .wizard-card {
+  min-width: 0;
+}
+
+.wizard-card {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #111827, #1f2937);
+  padding: 10px;
+  min-height: 100%;
+  
+}
+
+.wizard-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.wizard-search,
+.wizard-select {
+  width: 90%;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 7px 8px;
+  font-size: 0.82rem;
+}
+
+.wizard-field-list {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+}
+
+.wizard-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 4px;
+}
+
+.wizard-field-name {
+  color: #e2e8f0;
+  font-size: 0.83rem;
+}
+
+.wizard-type-pill {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid #334155;
+}
+
+.wizard-type-pill.type-string { color: #a78bfa; }
+.wizard-type-pill.type-object { color: #f59e0b; }
+.wizard-type-pill.type-date { color: #06b6d4; }
+.wizard-type-pill.type-array { color: #eab308; }
+.wizard-type-pill.type-objectid { color: #60a5fa; }
+
+.wizard-secondary,
+.wizard-primary {
+  border-radius: 9px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #d1d5db;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.wizard-primary {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+}
+
+.wizard-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.wizard-table-header > div {
+  display: flex;
+  gap: 8px;
+}
+
+.wizard-table-wrap {
+  overflow-x: visible;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+.wizard-table {
+  margin-top: 8px;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.wizard-table th,
+.wizard-table td {
+  border-bottom: 1px solid #334155;
+  padding: 6px;
+  font-size: 0.76rem;
+  color: #e2e8f0;
+  vertical-align: middle;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.wizard-table th {
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.wizard-table th:nth-child(1),
+.wizard-table td:nth-child(1) {
+  width: 34px;
+}
+
+.wizard-table th:nth-child(2),
+.wizard-table td:nth-child(2) {
+  width: 120px;
+}
+
+.wizard-table th:nth-child(3),
+.wizard-table td:nth-child(3) {
+  width: 110px;
+}
+
+.wizard-table th:nth-child(4),
+.wizard-table td:nth-child(4) {
+  width: 92px;
+  white-space: nowrap;
+}
+
+.wizard-table th:nth-child(5),
+.wizard-table td:nth-child(5) {
+  width: 95px;
+}
+
+.wizard-table th:nth-child(6),
+.wizard-table td:nth-child(6) {
+  width: 70px;
+}
+
+.wizard-table th:nth-child(7),
+.wizard-table td:nth-child(7) {
+  width: 75px;
+}
+
+.wizard-table th:nth-child(8),
+.wizard-table td:nth-child(8) {
+  width: 92px;
+}
+
+.wizard-table td:nth-child(8) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.mapping-table-panel {
+  min-width: 0;
+}
+
+.wizard-table .wizard-select {
+  margin-top: 0;
+  font-size: 0.75rem;
+  padding: 5px 6px;
+}
+
+.wizard-inline-code {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 5px 7px;
+}
+
+.wizard-remove-button {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.wizard-action-icon {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #67e8f9;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  cursor: pointer;
+}
+
+.wizard-row-actions {
+  display: flex;
+  align-items: center;
+}
+
+.wizard-remove-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wizard-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+}
+
+.wizard-modal {
+  width: min(560px, calc(100vw - 32px));
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 16px;
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-modal h3 {
+  margin: 0;
+}
+
+.wizard-modal p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.wizard-modal-label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.wizard-rule-mode-toggle {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.wizard-rule-mode-toggle label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.86rem;
+  color: #e2e8f0;
+}
+
+.wizard-rule-mode-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e2e8f0;
+  font-size: 0.86rem;
+}
+
+.wizard-modal-error {
+  color: #f87171 !important;
+  font-size: 0.82rem;
+}
+
+.wizard-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wizard-status {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.wizard-status.valid {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.wizard-status.optional {
+  background: rgba(6, 182, 212, 0.16);
+  color: #67e8f9;
+}
+
+.wizard-status.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.wizard-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.validation-panel {
+  grid-column: 1 / -1;
+  margin-top: 20px;
+}
+
+.wizard-code {
+  margin: 8px 0 0;
+  min-height: 230px;
+  max-height: 260px;
+  overflow: auto;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.75rem;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px;
+  background: #0b1220;
+}
+
+.wizard-code .ln {
+  color: #64748b;
+  display: inline-block;
+  width: 22px;
+  margin-right: 8px;
+  text-align: right;
+}
+
+.wizard-checklist {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #cbd5e1;
+  display: grid;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.wizard-actions {
+  border-top: 1px solid #334155;
+  margin-top: 2px;
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 50px;
+}
+
+.wizard-actions > div {
+  display: flex;
+  gap: 8px;
+}
+
+.templates-card {
+  display: grid;
+  gap: 10px;
+}
+
+.templates-list {
+  display: grid;
+  gap: 10px;
+}
+
+.template-item {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.template-item p {
+  margin: 4px 0;
+  color: #cbd5e1;
+}
+
+.template-item small {
+  color: #94a3b8;
+}
+
+@media (max-width: 900px) {
+  .dashboard-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .engines-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .engines-path-row {
+    grid-template-columns: 1fr;
+  }
+
+  .engine-path-arrow {
+    transform: rotate(90deg);
+  }
+
+  .engines-grid,
+  .engine-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-middle-grid,
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-kpi-grid,
+  .dashboard-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .migration-flow-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .global-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .global-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #334155;
+  }
+
+  .wizard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #334155;
+  }
+
+  .wizard-upper-grid,
+  .wizard-lower-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-actions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .wizard-actions > div {
+    width: 100%;
+  }
+
+  .wizard-actions button {
+    flex: 1;
+  }
+
+  .preview-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-particles {
+    display: none;
+  }
+
+  .mapping-action {
+    align-self: stretch;
+    width: 100%;
+  }
+
+  .preview-bridge {
+    min-height: 120px;
+  }
+
+  .preview-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .jobs-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .jobs-header .primary-button {
+    width: 100%;
+  }
+
+  .stage-nav {
+    justify-content: stretch;
+  }
+
+  .stage-nav .primary-button {
+    width: 100%;
+  }
+
+  .template-item {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1500px) {
+  .wizard-upper-grid {
+    grid-template-columns: minmax(170px, 0.55fr) minmax(0, 2.2fr) minmax(170px, 0.55fr);
+  }
+
+  .wizard-lower-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .validation-panel {
+    grid-column: 1 / -1;
+  }
+}
+</style>
