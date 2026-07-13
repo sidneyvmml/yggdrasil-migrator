@@ -15,6 +15,7 @@ export function useMigration() {
   const previewLoading = ref(false)
   const createJobLoading = ref(false)
   const keycloakUsernameSourceField = ref('username')
+  const keycloakTargetMatchField = ref('username')
 
   /**
    * Sincroniza mappings automáticos a partir de samples
@@ -148,6 +149,7 @@ export function useMigration() {
     previewRows.value = []
     sourceDocumentForMapping.value = null
     keycloakUsernameSourceField.value = 'username'
+    keycloakTargetMatchField.value = 'username'
   }
 
   return {
@@ -158,6 +160,7 @@ export function useMigration() {
     previewLoading,
     createJobLoading,
     keycloakUsernameSourceField,
+    keycloakTargetMatchField,
     syncMappingsFromSamples,
     loadKeycloakUsers,
     loadMongoSamples,

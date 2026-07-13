@@ -1,8 +1,12 @@
 from copy import deepcopy
+from datetime import datetime
 import json
+import re
 from typing import Any, Dict, Iterable, List, Optional
+from uuid import uuid4
 
 from bson import ObjectId
+from bson.binary import Binary
 from bson.json_util import loads as bson_loads
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -10,6 +14,8 @@ from app.schemas.common import FilterRule, FlattenConfigItem, LookupConfig, Migr
 
 
 class MigrationService:
+    _MANUAL_PLACEHOLDER_PATTERN = re.compile(r"^\{\{\s*(.+?)\s*\}\}$")
+
     def __init__(
         self,
         source_client: AsyncIOMotorClient,
@@ -84,6 +90,96 @@ class MigrationService:
                     "$field": rule.foreignField,
                 },
             )
+
+    @staticmethod
+    def apply_ordered_rules(source_document: Dict[str, Any], ordered_rules: List[Any]) -> Dict[str, Any]:
+        transformed: Dict[str, Any] = {}
+
+        for rule in ordered_rules:
+            target_field = rule.targetField
+            value: Any = None
+
+            if rule.ruleType == "manual":
+                value = MigrationService._resolve_manual_value(source_document, rule.manualValue)
+            elif rule.ruleType == "generated_id":
+                value = MigrationService._generate_binary_id()
+            elif rule.ruleType == "concat":
+                values: List[str] = []
+                for source_field in rule.sourceFields or []:
+                    source_value = MigrationService.read_value_by_path(source_document, source_field)
+                    if source_value is None:
+                        continue
+                    values.append(str(source_value))
+                value = (rule.separator or "").join(values)
+            else:
+                source_field = rule.sourceField
+                if not source_field:
+                    continue
+                value = MigrationService.read_value_by_path(source_document, source_field)
+                if value is None:
+                    continue
+
+            if rule.ruleType != "generated_id":
+                value = MigrationService._coerce_target_value(value, getattr(rule, "targetType", "auto"))
+
+            if rule.dbRefCollection:
+                value = {
+                    "$id": value,
+                    "$ref": rule.dbRefCollection,
+                    "$field": rule.dbRefForeignField or "_id",
+                }
+
+            MigrationService.write_value_by_path(transformed, target_field, value)
+
+        return transformed
+
+    @staticmethod
+    def _generate_binary_id() -> Binary:
+        return Binary(uuid4().bytes, subtype=3)
+
+    @staticmethod
+    def _coerce_target_value(value: Any, target_type: str) -> Any:
+        if value is None:
+            return value
+
+        if target_type == "auto":
+            return value
+
+        if target_type == "string":
+            return value if isinstance(value, str) else str(value)
+
+        if target_type == "integer":
+            if isinstance(value, bool):
+                return int(value)
+            if isinstance(value, (int, float)):
+                return int(value)
+            if isinstance(value, str):
+                try:
+                    return int(float(value.strip()))
+                except ValueError:
+                    return value
+            return value
+
+        if target_type == "date":
+            if isinstance(value, datetime):
+                return value
+            if isinstance(value, str):
+                trimmed = value.strip()
+                candidates = [trimmed.replace("Z", "+00:00"), trimmed]
+                for candidate in candidates:
+                    try:
+                        return datetime.fromisoformat(candidate)
+                    except ValueError:
+                        continue
+                for date_format in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+                    try:
+                        return datetime.strptime(trimmed, date_format)
+                    except ValueError:
+                        continue
+                return value
+            return value
+
+        return value
 
     @staticmethod
     async def apply_lookup(document: Dict[str, Any], lookup: LookupConfig, client: AsyncIOMotorClient, database: str) -> Any:
@@ -166,6 +262,56 @@ class MigrationService:
             return value
 
     @staticmethod
+    def _parse_manual_placeholder(expression: str) -> tuple[str, Optional[str]]:
+        parts = [part.strip() for part in expression.split("|") if part.strip()]
+        source_path = parts[0]
+        if source_path.startswith("source."):
+            source_path = source_path[len("source.") :]
+        transform = parts[1] if len(parts) > 1 else None
+        return source_path, transform
+
+    @staticmethod
+    def _coerce_placeholder_transform(value: Any, transform: str) -> Any:
+        normalized_transform = transform.strip().lower()
+        if normalized_transform in {"date", "datetime"}:
+            return MigrationService._coerce_target_value(value, "date")
+        if normalized_transform in {"integer", "int"}:
+            return MigrationService._coerce_target_value(value, "integer")
+        if normalized_transform in {"string", "str"}:
+            return MigrationService._coerce_target_value(value, "string")
+        return value
+
+    @staticmethod
+    def _resolve_manual_placeholder(source_document: Dict[str, Any], value: str) -> Any:
+        match = MigrationService._MANUAL_PLACEHOLDER_PATTERN.match(value)
+        if not match:
+            return value
+
+        source_path, transform = MigrationService._parse_manual_placeholder(match.group(1))
+        resolved = MigrationService.read_value_by_path(source_document, source_path)
+        if transform:
+            return MigrationService._coerce_placeholder_transform(resolved, transform)
+        return resolved
+
+    @staticmethod
+    def _resolve_manual_value(source_document: Dict[str, Any], value: Any) -> Any:
+        normalized_value = MigrationService._normalize_manual_value(value)
+
+        if isinstance(normalized_value, dict):
+            return {
+                key: MigrationService._resolve_manual_value(source_document, nested_value)
+                for key, nested_value in normalized_value.items()
+            }
+
+        if isinstance(normalized_value, list):
+            return [MigrationService._resolve_manual_value(source_document, item) for item in normalized_value]
+
+        if isinstance(normalized_value, str):
+            return MigrationService._resolve_manual_placeholder(source_document, normalized_value)
+
+        return normalized_value
+
+    @staticmethod
     def _merge_fill_missing(target: Dict[str, Any], incoming: Dict[str, Any]) -> None:
         for key, value in incoming.items():
             if key not in target:
@@ -223,11 +369,14 @@ class MigrationService:
             expanded_documents = self.apply_filters(expanded_documents, config.filterRules)
 
             for expanded_document in expanded_documents:
-                mapped = self.apply_field_mapping(expanded_document, config.fieldMapping)
-                self.apply_concat_rules(expanded_document, mapped, config.concatRules)
-                self.apply_dbref_rules(mapped, config.dbRefRules)
-                for manual_target, manual_value in config.manualMapping.items():
-                    self.write_value_by_path(mapped, manual_target, self._normalize_manual_value(manual_value))
+                if config.orderedRules:
+                    mapped = self.apply_ordered_rules(expanded_document, config.orderedRules)
+                else:
+                    mapped = self.apply_field_mapping(expanded_document, config.fieldMapping)
+                    self.apply_concat_rules(expanded_document, mapped, config.concatRules)
+                    self.apply_dbref_rules(mapped, config.dbRefRules)
+                    for manual_target, manual_value in config.manualMapping.items():
+                        self.write_value_by_path(mapped, manual_target, self._resolve_manual_value(expanded_document, manual_value))
                 for lookup in config.lookups:
                     mapped[lookup.asField] = await self.apply_lookup(mapped, lookup, self.source_client, config.source.database)
                 transformed.append(mapped)
@@ -244,12 +393,41 @@ class MigrationService:
         max_documents: Optional[int] = None,
         progress_callback: Optional[callable] = None,
     ) -> Dict[str, Any]:
+        warnings: List[str] = []
+
+        same_connection = (config.source.connectionString or "").strip() == (config.target.connectionString or "").strip()
+        same_namespace = config.source.database == config.target.database and config.source.collection == config.target.collection
+        if same_connection and same_namespace:
+            warnings.append(
+                "Source e target apontam para a mesma collection. Isso pode causar execucao sem efeito ou conflitos de chave."
+            )
+
         try:
             total_documents = await self.source.estimated_document_count()
             if max_documents is not None:
                 total_documents = min(total_documents, max_documents)
         except Exception as exc:
             raise self._wrap_stage_error("counting source documents", exc) from exc
+
+        mapping_mode = "ordered_rules" if config.orderedRules else "legacy"
+
+        if total_documents == 0:
+            warnings.append(
+                "A collection de origem esta vazia para os filtros atuais. Nenhum documento foi processado."
+            )
+            result: Dict[str, Any] = {
+                "processed": 0,
+                "inserted": 0,
+                "merged": 0,
+                "skipped": 0,
+                "errors": [],
+                "mappingMode": mapping_mode,
+                "orderedRulesCount": len(config.orderedRules or []),
+            }
+            if warnings:
+                result["warnings"] = warnings
+                result["warning"] = warnings[0]
+            return result
 
         source_cursor = self.source.find({})
         processed = 0
@@ -259,7 +437,6 @@ class MigrationService:
         errors: List[Dict[str, Any]] = []
         batch: List[Dict[str, Any]] = []
         merge_by_field = (config.mergeByField or "").strip()
-
         try:
             async for source_doc in source_cursor:
                 if max_documents is not None and processed >= max_documents:
@@ -270,11 +447,14 @@ class MigrationService:
                 expanded_sources = self.apply_filters(expanded_sources, config.filterRules)
 
                 for expanded_source in expanded_sources:
-                    mapped = self.apply_field_mapping(expanded_source, config.fieldMapping)
-                    self.apply_concat_rules(expanded_source, mapped, config.concatRules)
-                    self.apply_dbref_rules(mapped, config.dbRefRules)
-                    for manual_target, manual_value in config.manualMapping.items():
-                        self.write_value_by_path(mapped, manual_target, self._normalize_manual_value(manual_value))
+                    if config.orderedRules:
+                        mapped = self.apply_ordered_rules(expanded_source, config.orderedRules)
+                    else:
+                        mapped = self.apply_field_mapping(expanded_source, config.fieldMapping)
+                        self.apply_concat_rules(expanded_source, mapped, config.concatRules)
+                        self.apply_dbref_rules(mapped, config.dbRefRules)
+                        for manual_target, manual_value in config.manualMapping.items():
+                            self.write_value_by_path(mapped, manual_target, self._resolve_manual_value(expanded_source, manual_value))
 
                     for lookup in config.lookups:
                         mapped[lookup.asField] = await self.apply_lookup(mapped, lookup, self.source_client, config.source.database)
@@ -313,13 +493,19 @@ class MigrationService:
             if progress_callback and total_documents > 0:
                 progress_callback(min(99, int(processed / total_documents * 100)))
 
-        return {
+        result = {
             "processed": processed,
             "inserted": inserted,
             "merged": merged,
             "skipped": skipped,
             "errors": errors,
+                "mappingMode": mapping_mode,
+                "orderedRulesCount": len(config.orderedRules or []),
         }
+        if warnings:
+            result["warnings"] = warnings
+            result["warning"] = warnings[0]
+        return result
 
     async def _insert_batch(self, documents: List[Dict[str, Any]]) -> tuple[int, int, int, List[Dict[str, Any]]]:
         inserted = 0

@@ -6,7 +6,7 @@
     </div>
 
     <!-- MongoDB Connection Form -->
-    <template v-if="engine === 'MongoDB' || engine === 'PostgreSQL'">
+    <template v-if="engine === 'MongoDB'">
       <label>
         Connection String
         <input
@@ -63,6 +63,69 @@
           />
         </label>
       </template>
+
+      <div class="connection-actions">
+        <button class="primary-button" :disabled="testing" @click="$emit('test-connection')">
+          {{ testing ? 'Testing...' : 'Test Connection' }}
+        </button>
+        <button v-if="status === 'success'" class="status-success">✓ Connected</button>
+        <button v-else-if="status === 'error'" class="status-error">✗ Failed</button>
+      </div>
+
+      <p v-if="message" :class="['connection-message', status]">{{ message }}</p>
+    </template>
+
+    <!-- PostgreSQL Connection Form -->
+    <template v-else-if="engine === 'PostgreSQL'">
+      <label>
+        Host
+        <input
+          v-model="postgresForm.host"
+          type="text"
+          placeholder="localhost"
+          @input="syncPostgresAndEmit"
+        />
+      </label>
+
+      <label>
+        Port
+        <input
+          v-model="postgresForm.port"
+          type="text"
+          placeholder="5432"
+          @input="syncPostgresAndEmit"
+        />
+      </label>
+
+      <label>
+        Database
+        <input
+          v-model="postgresForm.database"
+          type="text"
+          placeholder="postgres"
+          @input="syncPostgresAndEmit"
+        />
+      </label>
+
+      <label>
+        Username
+        <input
+          v-model="postgresForm.username"
+          type="text"
+          placeholder="postgres"
+          @input="syncPostgresAndEmit"
+        />
+      </label>
+
+      <label>
+        Password
+        <input
+          v-model="postgresForm.password"
+          type="password"
+          placeholder="password"
+          @input="syncPostgresAndEmit"
+        />
+      </label>
 
       <div class="connection-actions">
         <button class="primary-button" :disabled="testing" @click="$emit('test-connection')">
@@ -163,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { EngineType, MongoConnectionConfig, KeycloakConnectionConfig } from '@/types'
 
 interface Props {
@@ -189,7 +252,7 @@ const props = withDefaults(defineProps<Props>(), {
   connected: false,
 })
 
-defineEmits<Emits>()
+const emit = defineEmits<Emits>()
 
 // Mongo form state - pode vir de props ou inicializar vazio
 const mongoForm = reactive<MongoConnectionConfig>({
@@ -201,6 +264,34 @@ const mongoForm = reactive<MongoConnectionConfig>({
   password: props.mongoConnection?.password || '',
   authSource: props.mongoConnection?.authSource || '',
 })
+
+const postgresForm = reactive({
+  host: 'localhost',
+  port: '5432',
+  database: props.mongoConnection?.database || '',
+  username: props.mongoConnection?.username || '',
+  password: props.mongoConnection?.password || '',
+})
+
+const syncPostgresConnectionString = () => {
+  const credentials = postgresForm.username
+    ? `${encodeURIComponent(postgresForm.username)}:${encodeURIComponent(postgresForm.password)}@`
+    : ''
+
+  mongoForm.connectionString = `postgresql://${credentials}${postgresForm.host}:${postgresForm.port}/${postgresForm.database}`
+  mongoForm.database = postgresForm.database
+  mongoForm.username = postgresForm.username
+  mongoForm.password = postgresForm.password
+  mongoForm.authEnabled = Boolean(postgresForm.username)
+  mongoForm.authSource = ''
+}
+
+const syncPostgresAndEmit = () => {
+  syncPostgresConnectionString()
+  emit('update-connection', mongoForm)
+}
+
+syncPostgresConnectionString()
 
 // Keycloak form state
 const keycloakForm = reactive<KeycloakConnectionConfig>({

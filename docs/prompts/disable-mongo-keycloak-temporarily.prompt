@@ -1,0 +1,54 @@
+S — Situation (Situação)
+Você está trabalhando em um monorepo com backend em FastAPI/Celery e frontend em Vue. Existe uma funcionalidade de migração entre engines que hoje inclui fluxo Mongo -> Keycloak, mas ela precisa ser temporariamente desativada sem remover código. A aplicação deve continuar estável e permitir reativação futura com baixo custo operacional.
+
+C — Challenge (Desafio)
+Implemente um controle de feature flag para desativar temporariamente a migração Mongo -> Keycloak, mantendo a funcionalidade no código para reuso futuro.
+
+Requisitos funcionais:
+1. Criar um toggle on/off via variável de ambiente para controlar migração Mongo -> Keycloak.
+2. Quando o toggle estiver desligado:
+3. Bloquear no backend qualquer tentativa de execução Mongo -> Keycloak.
+4. Restringir o frontend para permitir Keycloak -> Keycloak quando Keycloak estiver selecionado, mas sem travar o usuário: se outro engine for escolhido, Keycloak deve ser deselecionado automaticamente.
+5. Atualizar o badge/indicador visual para o texto: Keycloak - Keycloak Only.
+6. Não remover rotas, serviços ou lógica existente de Mongo -> Keycloak; apenas condicionar por flag.
+7. Garantir que, ao ligar o toggle novamente, o comportamento anterior possa voltar sem refatoração ampla.
+
+Critérios de sucesso:
+1. Com flag desligada: usuário não consegue selecionar ou executar Mongo -> Keycloak.
+2. Com flag ligada: comportamento existente volta a funcionar.
+3. Badge reflete corretamente o modo restrito.
+4. Há validação tanto no frontend quanto no backend (defesa em profundidade).
+5. Testes automatizados cobrindo ambos os cenários da flag.
+
+A — Audience (Público)
+O código será mantido por time full-stack com experiência intermediária. Priorize legibilidade, previsibilidade e baixo acoplamento para facilitar manutenção contínua.
+
+F — Format (Formato)
+1. Seguir padrões e convenções já existentes no projeto (nomes, organização de camadas e estilo).
+2. Implementar configuração centralizada da flag (evitar valores hardcoded espalhados).
+3. Alterações pequenas e focadas, sem refatorações não relacionadas.
+4. Incluir testes de regressão para:
+5. Flag desligada bloqueando Mongo -> Keycloak.
+6. Flag ligada restaurando fluxo anterior.
+7. Documentar brevemente a nova variável de ambiente e seu comportamento padrão.
+8. Mensagens de erro claras e acionáveis quando fluxo bloqueado por configuração.
+
+F — Foundations (Fundamentos)
+1. Segurança:
+2. Não confiar apenas no bloqueio de UI; backend deve validar e negar operações bloqueadas.
+3. Não expor detalhes internos sensíveis em mensagens de erro.
+4. Acessibilidade e UX:
+5. Estado desabilitado precisa ser compreensível (texto e indicação visual do motivo).
+6. Badge e feedbacks devem ser claros para evitar operação inválida.
+7. Tratamento de erros:
+8. Retornar resposta consistente quando a operação estiver desativada por flag.
+9. Garantir que a aplicação não quebre se a variável de ambiente estiver ausente; usar valor padrão seguro.
+10. Validações essenciais:
+11. Validar combinações source/target permitidas conforme o estado do toggle.
+12. Garantir consistência entre regras de frontend e backend.
+
+Entrega esperada:
+1. Implementação do toggle on/off via .env.
+2. Restrição efetiva para Keycloak -> Keycloak quando desligado.
+3. Badge atualizado para Keycloak - Keycloak Only no modo restrito.
+4. Testes e documentação mínima da configuração.

@@ -5,6 +5,9 @@
 import { ref, computed } from 'vue'
 import { EngineType } from '@/types/engine'
 
+export const ENABLE_MONGO_TO_KEYCLOAK_MIGRATION =
+  String(import.meta.env.VITE_ENABLE_MONGO_TO_KEYCLOAK_MIGRATION ?? 'false').toLowerCase() === 'true'
+
 export const ENGINE_DEFINITIONS = [
   {
     name: 'MongoDB',
@@ -25,8 +28,8 @@ export const ENGINE_DEFINITIONS = [
   {
     name: 'Keycloak',
     type: 'Identity and Access Management',
-    description: 'Realm users migration with configurable field mapping (Keycloak to Keycloak only)',
-    features: ['Users', 'Realms', 'Username mapping'],
+    description: 'Realm users update/migration with configurable field matching',
+    features: ['Users', 'Realms', 'Field matching'],
     available: true,
     selectable: true,
   },
@@ -68,6 +71,7 @@ export const ENGINE_GLYPHS: Record<string, string> = {
 export const ENGINE_LOGOS: Record<string, string> = {
   MongoDB: 'MongoDB.png',
   PostgreSQL: 'postgres.png',
+  Oracle: 'oracle.png',
   Redis: 'redis.png',
 }
 
@@ -81,21 +85,21 @@ export function useEngine() {
 
   /**
    * Valida compatibilidade de engines
-   * Keycloak só pode migrar para Keycloak
+   * Keycloak como destino suporta source MongoDB e Keycloak
    */
   const isCompatible = computed(() => {
     if (!selectedSourceEngine.value || !selectedTargetEngine.value) {
       return false
     }
 
-    const hasKeycloak =
-      selectedSourceEngine.value === 'Keycloak' || selectedTargetEngine.value === 'Keycloak'
-
-    if (!hasKeycloak) {
-      return true
+    if (selectedTargetEngine.value === 'Keycloak') {
+      if (!ENABLE_MONGO_TO_KEYCLOAK_MIGRATION) {
+        return selectedSourceEngine.value === 'Keycloak'
+      }
+      return selectedSourceEngine.value === 'Keycloak' || selectedSourceEngine.value === 'MongoDB'
     }
 
-    return selectedSourceEngine.value === 'Keycloak' && selectedTargetEngine.value === 'Keycloak'
+    return selectedSourceEngine.value !== 'Keycloak'
   })
 
   /**
@@ -110,10 +114,8 @@ export function useEngine() {
 
     if (engineName === 'Keycloak') {
       selectedTargetEngine.value = 'Keycloak'
-    } else {
-      if (selectedTargetEngine.value === 'Keycloak') {
-        selectedTargetEngine.value = ''
-      }
+    } else if (selectedTargetEngine.value === 'Keycloak') {
+      selectedTargetEngine.value = ''
     }
   }
 
@@ -129,10 +131,8 @@ export function useEngine() {
 
     if (engineName === 'Keycloak') {
       selectedSourceEngine.value = 'Keycloak'
-    } else {
-      if (selectedSourceEngine.value === 'Keycloak') {
-        selectedSourceEngine.value = ''
-      }
+    } else if (selectedSourceEngine.value === 'Keycloak') {
+      selectedSourceEngine.value = ''
     }
   }
 

@@ -1,0 +1,90 @@
+S - Situation (Situacao)
+Voce esta trabalhando no projeto yggdrasil-migrator, um monorepo com:
+- Backend em FastAPI (Python), com servicos de migracao, validacoes de schema e execucao de jobs.
+- Worker Celery para processamento assincrono de jobs.
+- Frontend em Vue 3 + TypeScript com fluxo por etapas (engine, conexao, mapeamento, jobs).
+- Persistencia de jobs/templates e estrutura ja consolidada para conexao por engine.
+- Cenario atual: a migracao para Keycloak esta limitada a Keycloak -> Keycloak.
+Objetivo de negocio: habilitar atualizacao de usuarios no Keycloak de destino usando dados de origem vindos do MongoDB, reaproveitando o fluxo de conexao e mapeamento ja existente.
+
+C - Challenge (Desafio)
+Implemente suporte a migracao/update MongoDB -> Keycloak com comportamento orientado por chave de correspondencia entre source e target.
+
+Requisitos funcionais obrigatorios:
+1. Habilitar migracao entre engines MongoDB -> Keycloak.
+2. Manter o fluxo de conexao existente por engine, incluindo selecao de database e collection no source MongoDB.
+3. Na etapa Mapping Rules, permitir definir explicitamente:
+- Source campo chave (exemplo: email)
+- Target campo chave (exemplo: username)
+4. Na execucao do Job, para cada registro source:
+- Encontrar o registro no target Keycloak em que target.campo_chave == source.campo_chave.
+- Atualizar os dados do usuario target conforme regras de mapeamento definidas.
+5. Nao criar novo usuario no target quando nao houver correspondencia de chave (modo update-only).
+6. Gerar resultado de job com metricas separadas: processados, atualizados, nao encontrados, erros.
+
+Criterios de sucesso:
+- Fluxo completo funcionando da UI ate backend/worker para MongoDB -> Keycloak.
+- Matching por campo configuravel no Mapping Rules.
+- Atualizacao aplicada somente quando a chave bater no target.
+- Sem regressao para os fluxos ja existentes.
+
+Criterios de desempenho:
+- Processamento em lote com uso eficiente de chamadas ao Keycloak.
+- Evitar busca redundante no target para cada campo nao necessario.
+- Garantir comportamento previsivel para volumes medios/altos (sem travar UI e sem timeout prematuro no backend).
+
+A - Audience (Publico)
+Time de manutencao full-stack com experiencia intermediaria em Python/FastAPI, Vue/TypeScript e integracoes de identidade (Keycloak). O codigo deve ser claro, com baixo acoplamento e facil manutencao por pessoas que nao participaram da implementacao inicial.
+
+F - Format (Formato)
+Diretrizes de implementacao:
+- Preservar arquitetura atual e convencoes existentes.
+- Reaproveitar o mecanismo ja existente de conexao por engine e fluxo por etapas.
+- Incluir alteracoes coordenadas entre frontend, schemas e servico de migracao/backend.
+- Evitar refatoracao ampla fora do escopo.
+- Manter nomes e contratos consistentes com o dominio atual.
+
+Entregaveis esperados:
+1. Implementacao do suporte MongoDB -> Keycloak com chave de update configuravel.
+2. Ajustes na UI para exibir e coletar Source campo chave e Target campo chave no Mapping Rules.
+3. Ajustes no payload e validacao backend para receber e aplicar os campos de chave.
+4. Logica de execucao de job update-only no target Keycloak por chave.
+5. Testes cobrindo:
+- caminho feliz com correspondencia por chave
+- registro source sem correspondencia no target
+- erro de validacao de chave ausente
+- regressao dos fluxos ja existentes
+
+Formato da resposta tecnica:
+- Resumo objetivo da solucao.
+- Lista de arquivos alterados e responsabilidade de cada alteracao.
+- Decisoes de compatibilidade/retrocompatibilidade.
+- Evidencias de testes executados e resultados.
+- Limitacoes conhecidas e proximos passos.
+
+F - Foundations (Fundamentos)
+Seguranca:
+- Nao expor secrets, tokens ou credenciais em logs.
+- Sanitizar mensagens de erro retornadas para UI.
+- Validar rigorosamente campos de chave e mapeamentos de entrada.
+
+Validacao e integridade:
+- Bloquear execucao se campo chave source ou target nao for informado.
+- Garantir que campo chave source exista na colecao/origem selecionada.
+- Garantir que campo chave target seja valido para busca de usuario no Keycloak.
+- Tratar nulos, strings vazias e duplicidades de chave no source.
+
+Tratamento de erros:
+- Erros por registro nao devem derrubar o job inteiro (salvo erro fatal de conexao).
+- Relatorio final do job deve distinguir claramente falhas de negocio vs falhas tecnicas.
+- Mensagens orientadas a acao para facilitar troubleshooting.
+
+Acessibilidade e UX:
+- Na UI, campos de chave devem ter rotulos claros, ajuda contextual e validacao visivel.
+- Impedir avanco para Jobs sem configuracao minima valida de chave.
+- Exibir feedback de progresso e resultado final de forma compreensivel.
+
+Restricoes e nao regressao:
+- Manter funcionando os cenarios ja suportados, especialmente Keycloak -> Keycloak.
+- Nao alterar comportamento de conexao fora do necessario para o novo fluxo.
+- Evitar breaking changes em contratos publicos sem fallback compativel.

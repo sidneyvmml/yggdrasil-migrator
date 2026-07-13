@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         env="SQLITE_PATH",
     )
     mongodb_connect_timeout_ms: int = Field(5000, env="MONGODB_CONNECT_TIMEOUT_MS")
+    enable_mongo_to_keycloak_migration: bool = Field(False, env="ENABLE_MONGO_TO_KEYCLOAK_MIGRATION")
 
     model_config = SettingsConfigDict(
         env_file=(str(BACKEND_DIR / ".env"), ".env"),

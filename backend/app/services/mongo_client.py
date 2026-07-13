@@ -123,11 +123,17 @@ class MongoExplorationService:
         return await MongoExplorationService._run_with_auth_fallback(connection_string, operation)
 
     @staticmethod
-    async def sample_documents(connection_string: str, database: str, collection: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def sample_documents(
+        connection_string: str,
+        database: str,
+        collection: str,
+        limit: int = 10,
+        query: Dict[str, Any] | None = None,
+    ) -> List[Dict[str, Any]]:
         async def operation(conn: str) -> List[Dict[str, Any]]:
             client = MongoClientFactory.create_client(conn)
             try:
-                cursor = client[database][collection].find({}, limit=limit)
+                cursor = client[database][collection].find(query or {}, limit=limit)
                 docs = [doc async for doc in cursor]
                 # Serialize BSON types to JSON-compatible format
                 return [MongoClientFactory._serialize_bson(doc) for doc in docs]

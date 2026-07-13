@@ -8,6 +8,8 @@ export interface MigrationResult {
   merged?: number
   skipped: number
   error?: string
+  warning?: string
+  warnings?: string[]
 }
 
 export interface JobItem {

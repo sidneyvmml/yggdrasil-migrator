@@ -1,0 +1,64 @@
+# Prompt: Ajuste de filtro em Connections para engine Keycloak (S.C.A.F.F.)
+
+## S — Situation (Situação)
+Você está trabalhando no projeto **yggdrasil-migrator**, um monorepo com:
+- Backend em FastAPI (Python), com rotas em `backend/app/routers/` e serviços em `backend/app/services/`.
+- Frontend em Vue 3 + TypeScript, com componentes em `frontend/src/components/`, composables em `frontend/src/composables/` e tipos em `frontend/src/types/`.
+- Integração de fluxo de migração por engines (incluindo `keycloak`) a partir da seção **Connections**.
+
+Hoje já existe lógica de filtros por engine, mas para `keycloak` é necessário ampliar o comportamento de filtro de campo para suportar operadores relacionados a nulidade.
+
+## C — Challenge (Desafio)
+Implementar no fluxo de **Connections** (quando `engine = keycloak`) a capacidade de filtrar por:
+1. `campo` X escolhido pelo usuário;
+2. operador de filtro incluindo, no mínimo:
+   - `not null`
+   - `null`
+   - demais opções já existentes no sistema (ex.: equals, contains, etc., sem regressão).
+
+### Critérios de sucesso
+- Usuário consegue selecionar um campo e aplicar filtro `null` e `not null` no engine `keycloak`.
+- Os operadores já existentes continuam funcionando.
+- O payload enviado ao backend representa corretamente o operador selecionado.
+- O backend interpreta e aplica o filtro sem erro.
+- Não há quebra para outros engines.
+
+### Requisitos de desempenho
+- Não adicionar consultas ou transformações redundantes.
+- Evitar re-renderizações desnecessárias no frontend.
+- Manter complexidade linear no processamento de filtros.
+
+## A — Audience (Público)
+Este código será mantido por um time full-stack de nível **pleno**, com familiaridade em Vue, TypeScript e FastAPI, mas que precisa de código explícito, previsível e fácil de testar.
+
+## F — Format (Formato)
+Siga estes padrões de entrega:
+- Faça alterações mínimas e focadas, sem refatorações amplas.
+- Preserve convenções existentes de nomes, estrutura e estilo de código.
+- Atualize tipos TypeScript e schemas Python apenas quando necessário para refletir os novos operadores.
+- Se houver mapeamento de operadores (frontend/backend), centralize em constantes/utilitários existentes.
+- Inclua testes de regressão focados:
+  - Frontend/composable (se houver cobertura no projeto) para geração de payload.
+  - Backend/service/router para validação de `null` e `not null`.
+- Entregue diff claro com justificativa curta por arquivo alterado.
+
+## F — Foundations (Fundamentos)
+Requisitos obrigatórios:
+- Segurança:
+  - Validar e sanitizar entradas de campo e operador.
+  - Rejeitar operadores não permitidos com erro claro.
+- Tratamento de erros:
+  - Mensagens acionáveis para usuário e logs úteis para diagnóstico.
+  - Não expor stack trace sensível ao cliente.
+- Validações essenciais:
+  - Para operadores `null` e `not null`, não exigir valor de comparação.
+  - Para operadores que exigem valor, manter validação obrigatória de valor.
+- Acessibilidade/UI:
+  - Garantir que novos controles de operador sejam navegáveis por teclado.
+  - Labels e estados de erro devem ser claros e consistentes.
+
+## Saída esperada
+1. Lista de arquivos alterados com breve motivo.
+2. Implementação dos operadores `null` e `not null` para `keycloak` em Connections.
+3. Testes criados/ajustados e resultado de execução.
+4. Observações de compatibilidade (impacto zero nos demais engines).

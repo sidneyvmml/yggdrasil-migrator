@@ -1,0 +1,67 @@
+# Prompt: Corrigir uso do documento modelo em Field Mapping & Transformation (S.C.A.F.F.)
+
+## S - Situation (Situacao)
+Voce esta trabalhando no projeto yggdrasil-migrator, um monorepo com:
+- Backend em FastAPI (Python), com validacoes, schemas e servicos de migracao.
+- Frontend em Vue 3 + TypeScript, com fluxo em etapas (Connections -> Mapping Rules -> Preview -> Jobs).
+- Estado e regras de UI em composables e no App principal.
+
+No fluxo atual, o usuario escolhe um documento modelo na etapa de Connections para servir de base de mapeamento. Porem, ao avancar para a tela Field Mapping & Transformation (Mapping Rules), esse documento modelo nao esta sendo aplicado corretamente. Como efeito, campos existentes no documento modelo nao aparecem na tela seguinte.
+
+## C - Challenge (Desafio)
+Corrigir o comportamento para que a selecao de documento modelo na etapa de Connections seja efetivamente usada como base na etapa Mapping Rules.
+
+### Requisitos funcionais
+1. Quando o usuario selecionar um documento modelo em Connections, a tela de Mapping Rules deve usar esse documento como fonte principal de campos.
+2. Campos existentes no documento modelo devem aparecer na lista de campos de origem da tela Mapping Rules.
+3. Se nao houver documento modelo selecionado, manter fallback consistente para o comportamento atual (sem quebrar fluxo).
+4. Alterar apenas o necessario, sem regressao em outros modos (MongoDB, Keycloak, source/target diferentes).
+5. Garantir sincronizacao correta entre estado de selecao em Connections e renderizacao dos campos em Mapping Rules.
+
+### Criterios de sucesso
+- Campos do documento modelo selecionado aparecem corretamente em Mapping Rules.
+- Mapeamentos automaticos e manuais continuam funcionando.
+- Nao ocorre troca silenciosa para outro documento sem acao do usuario.
+- Nao ha regressao no fluxo quando o documento modelo nao e selecionado.
+
+### Requisitos de desempenho
+- Evitar recomputacoes e rerenders desnecessarios.
+- Manter processamento linear na leitura dos caminhos de campos.
+- Nao adicionar chamadas de API redundantes ao trocar de etapa.
+
+## A - Audience (Publico)
+O codigo sera mantido por time full-stack de nivel pleno (Vue/TS + FastAPI/Python). A implementacao deve ser clara, previsivel, de facil manutencao e com baixo acoplamento.
+
+## F - Format (Formato)
+Siga o padrao do repositorio:
+- Mudancas pequenas e focadas, sem refatoracao ampla.
+- Preservar convencoes existentes de nomes, estrutura e estilo.
+- Atualizar apenas arquivos necessarios no frontend e, se preciso, payload/normalizacao de backend.
+- Se houver estado duplicado entre composables e App, centralizar a fonte da verdade para o documento modelo selecionado.
+- Adicionar testes de regressao focados:
+  - Selecao de documento modelo em Connections.
+  - Propagacao para Mapping Rules.
+  - Exibicao de campos esperados.
+  - Fallback sem selecao de documento.
+- Entregar diff claro por arquivo alterado e justificativa curta.
+
+## F - Foundations (Fundamentos)
+Requisitos obrigatorios:
+- Seguranca e robustez:
+  - Validar existencia do documento selecionado antes de usar.
+  - Proteger contra estado invalido, nulo ou obsoleto ao trocar de engine/aba.
+- Tratamento de erros:
+  - Mostrar mensagem acionavel quando documento base nao puder ser resolvido.
+  - Evitar falha silenciosa e stack trace exposto ao usuario.
+- Validacoes essenciais:
+  - Garantir que a lista de campos derive do documento realmente selecionado.
+  - Garantir consistencia entre chave de selecao e documento renderizado.
+- UX e acessibilidade:
+  - Manter feedback visual claro de qual documento esta selecionado como base.
+  - Garantir navegacao por teclado e labels consistentes.
+
+## Saida esperada
+1. Lista de arquivos alterados com motivo.
+2. Correcao implementada para uso do documento modelo entre Connections e Mapping Rules.
+3. Testes criados/ajustados e resultado da execucao.
+4. Observacoes de compatibilidade e possiveis riscos residuais.

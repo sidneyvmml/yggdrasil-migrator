@@ -1,0 +1,813 @@
+# SCAFF Prompt — Criar ações, modais, drawers e telas dos botões do Visual Migration Builder
+
+## S — Situation / Situação
+
+Você está trabalhando no frontend da aplicação **Yggdrasil Migrator**, uma ferramenta SaaS técnica para migração de dados entre bancos como MongoDB, PostgreSQL e outros bancos relacionais/documentais.
+
+A tela **New Migration — Visual Migration Builder** já foi criada com a identidade visual dark do produto.
+
+Atualmente, os botões existem visualmente, mas ainda estão sem ação.
+
+A tela atual possui:
+
+* Sidebar
+* Topbar
+* Connection Status Bar
+* Source Explorer
+* Migration Canvas
+* Target Explorer
+* Nodes visuais
+* Conexões entre nodes
+* Drawer de Configure Mapping
+* Flow Validation Bar
+* Execution Plan Panel
+
+Agora precisamos implementar as ações, modais, drawers e telas correspondentes aos botões principais.
+
+A identidade visual deve continuar a mesma:
+
+* Dark navy background
+* Slate panels
+* Thin soft borders
+* Green primary accents
+* Cyan/blue secondary accents
+* Orange warning accents
+* Red error accents
+* Typography limpa estilo Inter
+* Código/JSON com visual tipo JetBrains Mono
+* UI densa, técnica, moderna e profissional
+
+---
+
+## C — Challenge / Desafio
+
+Implementar os comportamentos visuais e estruturais dos botões da tela **Visual Migration Builder**.
+
+Os botões que precisam de ação são:
+
+```txt id="g7dw19"
+Save Draft
+Run Dry Test
+Continue to Review
+Create target table
+Select
+Connect
+Auto Layout
+Validate
+Clear
+Preview
+Map Fields
+Schema
+Validate Mapping
+Save Mapping
+Close Drawer
+```
+
+A primeira versão pode trabalhar com dados mockados, mas deve deixar a arquitetura preparada para integração futura com backend.
+
+Não é necessário implementar drag-and-drop real agora, a menos que o projeto já tenha estrutura para isso.
+
+O objetivo é deixar a tela navegável e funcional visualmente, permitindo ao usuário abrir modais/drawers, simular validações, visualizar preview, revisar migration job e simular dry run.
+
+---
+
+## A — Audience / Público
+
+O código será mantido por desenvolvedores frontend/backend de nível intermediário a sênior.
+
+O usuário final é técnico:
+
+* Desenvolvedor
+* Data engineer
+* Arquiteto de dados
+* Analista responsável por migração de dados
+
+A experiência deve priorizar:
+
+* Segurança
+* Clareza
+* Rastreabilidade
+* Feedback visual
+* Prevenção de erro humano
+* Fluxo técnico coerente
+
+---
+
+## F — Format / Formato esperado
+
+Manter a stack e padrões atuais do projeto.
+
+Se o projeto usa Vue 3, implementar com:
+
+* Vue 3
+* Composition API
+* TypeScript, se já estiver em uso
+* Tailwind CSS, se já estiver em uso
+* Pinia, se já estiver em uso
+* Vue Router, se já estiver em uso
+* Componentização clara
+
+Criar ou complementar os seguintes componentes:
+
+```txt id="nkehaf"
+src/
+  views/
+    migrations/
+      VisualMigrationBuilderView.vue
+      ReviewMigrationJobView.vue
+
+  components/
+    migrations/
+      visual-builder/
+        SaveDraftModal.vue
+        DryRunResultsDrawer.vue
+        CreateTargetTableModal.vue
+        DataPreviewDrawer.vue
+        SchemaDetailsDrawer.vue
+        FlowValidationDrawer.vue
+        ClearCanvasConfirmModal.vue
+        CreateMigrationMappingModal.vue
+        ConfigureMappingDrawer.vue
+        FieldMappingTable.vue
+        StatusBadge.vue
+        ActionToast.vue
+```
+
+Se a estrutura atual do projeto for diferente, adaptar mantendo separação lógica.
+
+---
+
+## F — Foundations / Fundamentos obrigatórios
+
+### Visual
+
+Manter os tokens visuais:
+
+```txt id="pd0zup"
+Background principal: #0F172A
+Sidebar background: #0B1220
+Panel surface: #111827
+Panel surface alt: #1F2937
+Border: #334155
+Primary green: #22C55E
+Accent cyan: #06B6D4
+Warning orange: #F59E0B
+Error red: #EF4444
+Text primary: #F8FAFC
+Text secondary: #94A3B8
+```
+
+### UX
+
+Todos os botões devem dar feedback visual.
+
+Nenhuma ação deve parecer “morta”.
+
+Quando ainda não houver backend, usar:
+
+* Modal
+* Drawer
+* Toast
+* Estado local mockado
+* Simulação de loading
+* Resultado mockado
+
+### Acessibilidade
+
+Garantir:
+
+* Botões com `type="button"` quando aplicável
+* Foco visível
+* Modais com título claro
+* Drawers com botão de fechar
+* `aria-label` em botões de ícone
+* Não depender apenas de cor para status
+
+---
+
+# Requisitos por botão
+
+## 1. Save Draft
+
+Ao clicar em **Save Draft**, abrir modal:
+
+Título:
+
+```txt id="ee59pe"
+Save Migration Draft
+```
+
+Campos:
+
+```txt id="c0smyj"
+Draft name
+Description
+```
+
+Valores iniciais:
+
+```txt id="n6vy2o"
+Draft name: MongoDB accounts to PostgreSQL clients
+Description: Visual migration flow from source_db to target_db
+```
+
+Botões:
+
+```txt id="znd61m"
+Cancel
+Save Draft
+```
+
+Ao salvar:
+
+* Fechar modal
+* Mostrar toast:
+
+```txt id="5slaxz"
+Draft saved successfully.
+```
+
+---
+
+## 2. Run Dry Test
+
+Ao clicar em **Run Dry Test**, abrir drawer grande ou tela lateral:
+
+Título:
+
+```txt id="htccxk"
+Dry Run Results
+```
+
+Simular loading por estado visual opcional:
+
+```txt id="mrv4jf"
+Running dry test...
+```
+
+Depois exibir resultado mockado:
+
+```txt id="tx537m"
+Status: Completed with warnings
+
+Tested records: 100
+Valid records: 94
+Failed records: 6
+Estimated full migration: 173,294 records
+
+Warnings:
+- 3 required target fields are missing
+- 1 DBRef requires manual configuration
+- 6 records contain invalid date format
+```
+
+Botões:
+
+```txt id="3ix8fy"
+View Failed Records
+Adjust Mapping
+Run Again
+Continue to Review
+```
+
+Ação dos botões:
+
+* View Failed Records: mostrar lista mockada de failed records dentro do próprio drawer.
+* Adjust Mapping: fechar Dry Run e abrir Configure Mapping Drawer.
+* Run Again: repetir loading visual e mostrar resultado.
+* Continue to Review: navegar para ReviewMigrationJobView ou abrir tela de review.
+
+---
+
+## 3. Continue to Review
+
+Ao clicar em **Continue to Review**, navegar para uma nova tela:
+
+```txt id="eyl7cd"
+/new-migration/review
+```
+
+Criar view:
+
+```txt id="jyk5p6"
+ReviewMigrationJobView.vue
+```
+
+Conteúdo da tela:
+
+Título:
+
+```txt id="a5w6vq"
+Review Migration Job
+```
+
+Subtítulo:
+
+```txt id="5da9vq"
+Review source, target, mappings, validation and execution strategy before creating the migration job.
+```
+
+Seções:
+
+### Source and Target
+
+```txt id="0fvmj8"
+Source: MongoDB / source_db
+Target: PostgreSQL / target_db
+```
+
+### Entity Mappings
+
+```txt id="0ft6yi"
+accounts → clients
+Status: Needs review
+Mapped fields: 12/14
+
+orders → sales_orders
+Status: Ready
+Mapped fields: 21/21
+```
+
+### Execution Summary
+
+```txt id="vy3fi1"
+Estimated records: 173,294
+Strategy: Dependency-based
+Batch size: 1000
+Error handling: Skip failed records and list at the end
+```
+
+### Validation Summary
+
+```txt id="8wk68y"
+2 entity mappings configured
+1 warning
+0 critical errors
+```
+
+Botões:
+
+```txt id="qr6vco"
+Back to Builder
+Run Dry Test
+Create Migration Job
+```
+
+Ao clicar em **Create Migration Job**, mostrar modal de confirmação:
+
+```txt id="906muv"
+Create Migration Job?
+
+This will create a migration job based on the current visual flow.
+
+[Cancel] [Create Job]
+```
+
+Após confirmar, mostrar estado de sucesso:
+
+```txt id="47hfhb"
+Migration job created successfully.
+```
+
+---
+
+## 4. Create target table
+
+Ao clicar em **Create target table**, abrir modal:
+
+Título:
+
+```txt id="f8c6e0"
+Create Target Table
+```
+
+Campos:
+
+```txt id="43fcy4"
+Table name
+Schema
+Creation mode
+Source entity
+Primary key
+```
+
+Valores/opções:
+
+```txt id="1adk2p"
+Table name: customers
+Schema: public
+
+Creation mode:
+- Empty table
+- Based on source entity
+- Based on mapping output
+
+Source entity:
+- accounts
+- orders
+- users
+- invoices
+- products
+
+Primary key:
+id
+```
+
+Botões:
+
+```txt id="7hm1f8"
+Cancel
+Create Table
+```
+
+Ao criar:
+
+* Fechar modal
+* Adicionar tabela mockada na lista do Target Explorer
+* Mostrar toast:
+
+```txt id="4f7qgn"
+Target table created successfully.
+```
+
+---
+
+## 5. Select
+
+Ao clicar em **Select**:
+
+* Ativar modo `select`
+* Destacar botão Select
+* Mostrar toast ou helper no canvas:
+
+```txt id="nvy9hx"
+Select mode enabled. Click a node to inspect details.
+```
+
+---
+
+## 6. Connect
+
+Ao clicar em **Connect**:
+
+* Ativar modo `connect`
+* Destacar botão Connect
+* Mostrar helper no canvas:
+
+```txt id="183cjr"
+Connect mode enabled. Select a source node and then a target node.
+```
+
+Se possível, ao clicar em nodes mockados, abrir modal:
+
+```txt id="fgxiub"
+Create Migration Mapping?
+
+MongoDB.accounts will be migrated to PostgreSQL.clients.
+
+Auto mapping found:
+8 of 14 fields
+
+Warnings:
+- 3 fields need transformation
+- 1 DBRef needs configuration
+
+[Cancel] [Configure Mapping]
+```
+
+Botão **Configure Mapping** deve abrir o Configure Mapping Drawer.
+
+---
+
+## 7. Auto Layout
+
+Ao clicar em **Auto Layout**:
+
+* Reorganizar visualmente os nodes mockados se possível.
+* Se ainda não houver engine de layout, alterar uma variável de estado e reposicionar os nodes com classes/positions alternativas.
+* Mostrar toast:
+
+```txt id="owj4t9"
+Canvas layout updated.
+```
+
+---
+
+## 8. Validate
+
+Ao clicar em **Validate**, abrir drawer:
+
+Título:
+
+```txt id="t3q7p4"
+Flow Validation Details
+```
+
+Conteúdo:
+
+```txt id="c8yymv"
+Validation Summary
+
+✓ Source connection is healthy
+✓ Target connection is healthy
+✓ 2 entity mappings configured
+✓ 38 fields mapped
+⚠ 3 required target fields missing
+⚠ 1 DBRef needs manual configuration
+✓ 0 critical errors
+```
+
+Seção por mapping:
+
+```txt id="wxizxx"
+accounts → clients
+Status: Needs review
+Issues:
+- company.$id requires DBRef configuration
+- 2 required fields are unmapped
+
+orders → sales_orders
+Status: Ready
+No issues found.
+
+users
+Status: Not connected
+Issue:
+- Entity is on canvas but not connected.
+```
+
+Botões:
+
+```txt id="gxjx6a"
+Close
+Run Dry Test
+Adjust Mapping
+```
+
+---
+
+## 9. Clear
+
+Ao clicar em **Clear**, abrir modal:
+
+Título:
+
+```txt id="srl4ew"
+Clear Canvas?
+```
+
+Texto:
+
+```txt id="ee55s7"
+This will remove all nodes, connections and unsaved mappings from the current canvas.
+```
+
+Botões:
+
+```txt id="m7x42o"
+Cancel
+Clear Canvas
+```
+
+Ao confirmar:
+
+* Remover nodes/connections mockados do canvas ou marcar canvas como empty state.
+* Mostrar empty state:
+
+```txt id="1tnrmd"
+Your canvas is empty.
+Drag source and target entities here to start building a migration flow.
+```
+
+* Mostrar toast:
+
+```txt id="nw2kk0"
+Canvas cleared.
+```
+
+---
+
+## 10. Preview
+
+Os botões **Preview** dos nodes devem abrir drawer:
+
+Título variável:
+
+```txt id="9ky1x7"
+Data Preview
+```
+
+Para MongoDB.accounts:
+
+```json id="15kl3u"
+{
+  "_id": "665f8a3e1c2b4d5e7f8a9b10",
+  "name": "João Silva",
+  "documentId": "12341",
+  "email": "joao@email.com",
+  "address": {
+    "street": "Rua das Flores, 123",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01000-000"
+  },
+  "createdAt": "2024-05-20T14:30:00Z",
+  "tags": ["premium", "active"]
+}
+```
+
+Para PostgreSQL.clients, mostrar tabela compacta:
+
+```txt id="i1axlh"
+id | name_client | document | email | city | state
+```
+
+Botões:
+
+```txt id="8e6ehl"
+Close
+Map Fields
+```
+
+---
+
+## 11. Map Fields
+
+Ao clicar em **Map Fields**:
+
+* Abrir ConfigureMappingDrawer
+* Atualizar o contexto para o mapping selecionado
+
+Exemplo:
+
+```txt id="tjzn7g"
+MongoDB.accounts → PostgreSQL.clients
+```
+
+---
+
+## 12. Schema
+
+Ao clicar em **Schema**, abrir drawer:
+
+Título:
+
+```txt id="gvzvl0"
+Schema Details
+```
+
+Conteúdo para PostgreSQL.clients:
+
+```txt id="0k2d2v"
+Table: clients
+Schema: public
+Rows: 8,201
+Columns: 14
+
+Columns:
+id          varchar      primary key, required
+name_client varchar      required
+document    varchar      unique, required
+email       varchar      nullable
+phone       varchar      nullable
+city        varchar      nullable
+state       varchar      nullable
+zip_code    varchar      nullable
+company_id  varchar      foreign key
+created_at  timestamp    required
+tags        jsonb        nullable
+status      varchar      default active
+is_active   boolean      default true
+notes       text         nullable
+
+Constraints:
+- clients_pkey
+- clients_document_unique
+- clients_company_fk
+
+Indexes:
+- idx_clients_document
+- idx_clients_company_id
+```
+
+Botões:
+
+```txt id="gv5n83"
+Close
+Use as Target
+```
+
+---
+
+## 13. Validate Mapping
+
+Dentro do Configure Mapping Drawer, ao clicar em **Validate Mapping**:
+
+* Atualizar estado do mapping
+* Mostrar painel ou toast:
+
+```txt id="vycr6k"
+Mapping validation completed.
+1 warning found.
+```
+
+Exibir detalhes no drawer:
+
+```txt id="fgq2tv"
+Validation Result
+
+✓ 12 fields mapped
+✓ No incompatible types found
+⚠ company.$id requires DBRef reference collection
+⚠ 2 optional fields are unmapped
+```
+
+---
+
+## 14. Save Mapping
+
+Ao clicar em **Save Mapping**:
+
+* Atualizar status do mapping selecionado
+* Fechar drawer ou manter aberto com estado salvo
+* Mostrar toast:
+
+```txt id="cmzn50"
+Mapping saved successfully.
+```
+
+Se houver warning:
+
+```txt id="febnpk"
+Mapping saved with warnings.
+```
+
+---
+
+# Estado local recomendado
+
+No componente principal, criar estados como:
+
+```ts id="a0kf2k"
+const activeMode = ref<'select' | 'connect'>('select');
+
+const isSaveDraftModalOpen = ref(false);
+const isDryRunDrawerOpen = ref(false);
+const isCreateTargetTableModalOpen = ref(false);
+const isDataPreviewDrawerOpen = ref(false);
+const isSchemaDetailsDrawerOpen = ref(false);
+const isFlowValidationDrawerOpen = ref(false);
+const isClearCanvasModalOpen = ref(false);
+const isCreateMappingModalOpen = ref(false);
+const isConfigureMappingDrawerOpen = ref(false);
+
+const selectedNode = ref(null);
+const selectedMapping = ref(null);
+const toastMessage = ref('');
+```
+
+Se o projeto usa Pinia, pode criar store:
+
+```txt id="cnxv8s"
+useVisualMigrationBuilderStore
+```
+
+Com responsabilidades:
+
+```txt id="com59s"
+- entities source/target
+- canvas nodes
+- canvas connections
+- selected node
+- selected mapping
+- drawer/modal states
+- validation result
+- dry run result
+```
+
+---
+
+# Critérios de aceite
+
+A implementação será considerada correta se:
+
+1. Todos os botões principais tiverem alguma ação visível.
+2. Save Draft abrir modal e salvar com feedback.
+3. Run Dry Test abrir resultado de simulação.
+4. Continue to Review navegar ou abrir tela de revisão.
+5. Create target table abrir modal e adicionar item mockado.
+6. Select e Connect alterarem o modo ativo visualmente.
+7. Auto Layout causar mudança visual ou feedback.
+8. Validate abrir drawer de validação detalhada.
+9. Clear abrir confirmação e limpar canvas visualmente.
+10. Preview abrir drawer de preview.
+11. Map Fields abrir drawer de mapping.
+12. Schema abrir drawer de schema.
+13. Validate Mapping mostrar resultado de validação.
+14. Save Mapping mostrar feedback e atualizar status.
+15. A identidade visual dark deve permanecer consistente.
+16. O código deve estar componentizado.
+17. Não deve haver botão sem resposta visual.
+18. O sistema deve continuar usando mock data, sem depender de backend.
+19. A tela de Review Migration Job deve ser criada.
+20. O fluxo deve parecer realista e pronto para futura integração.

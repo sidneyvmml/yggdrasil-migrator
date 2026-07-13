@@ -1,0 +1,828 @@
+# SCAFF Prompt — Criar tela Visual Migration Builder do Yggdrasil Migrator
+
+## S — Situation / Situação
+
+Você está atuando em um projeto frontend para uma aplicação chamada **Yggdrasil Migrator**, uma ferramenta de migração de dados entre bancos distintos.
+
+A aplicação permite criar fluxos de migração entre bancos como:
+
+* MongoDB → MongoDB
+* MongoDB → PostgreSQL
+* PostgreSQL → MongoDB
+* PostgreSQL → PostgreSQL
+* Futuramente: MySQL, Oracle, SQL Server, Redis etc.
+
+A identidade visual do produto já foi definida como uma ferramenta SaaS técnica, moderna e profissional, com tema dark, voltada para desenvolvedores, data engineers e times técnicos.
+
+A tela que deve ser criada é:
+
+**New Migration — Visual Migration Builder**
+
+Essa tela acontece depois que o usuário já configurou e testou com sucesso as conexões de banco **source** e **target**.
+
+Ela deve permitir que o usuário visualize as tabelas/collections disponíveis no source e no target, arraste entidades para um canvas central, conecte uma entidade de origem com uma entidade de destino e configure o mapeamento de campos entre elas.
+
+O objetivo é transformar a experiência de migração em um **builder visual**, parecido com ferramentas como:
+
+* Airbyte
+* Retool
+* n8n
+* MongoDB Compass
+* Linear
+* GitHub Actions
+* ferramentas de pipeline/data flow
+
+A tela deve seguir a identidade visual já aprovada para o Yggdrasil Migrator:
+
+* Dark navy background
+* Slate panels
+* Thin soft borders
+* Green primary accents
+* Cyan/blue secondary accents
+* Orange warning accents
+* Red error accents
+* Typography similar to Inter
+* Technical/code areas similar to JetBrains Mono
+* Visual profissional, denso, elegante e utilizável
+
+---
+
+## C — Challenge / Desafio
+
+Crie a tela **Visual Migration Builder** com foco em UX/UI, componentização e preparação para futura integração real com backend.
+
+A tela deve conter:
+
+1. Sidebar lateral com navegação principal.
+2. Topbar com breadcrumb, ações e usuário.
+3. Barra de status das conexões source e target.
+4. Painel esquerdo com entidades do banco source.
+5. Canvas central para construção visual da migração.
+6. Painel direito com entidades do banco target.
+7. Cards de entidades arrastáveis.
+8. Nodes no canvas representando tabelas/collections.
+9. Conexões visuais entre source e target.
+10. Estados visuais de mapping:
+
+    * Ready
+    * Needs review
+    * Not connected
+    * Warning
+    * Error
+11. Painel inferior de validação do fluxo.
+12. Painel flutuante de Execution Plan.
+13. Drawer lateral de configuração de mapeamento.
+14. Tabela de field mapping dentro do drawer.
+15. Botões de ação:
+
+    * Save Draft
+    * Run Dry Test
+    * Continue to Review
+    * Validate Mapping
+    * Save Mapping
+
+A primeira entrega pode usar dados mockados, mas a arquitetura deve estar pronta para receber dados reais da API futuramente.
+
+---
+
+## A — Audience / Público
+
+O código será mantido por desenvolvedores frontend/backend com perfil técnico intermediário a sênior.
+
+A solução deve ser:
+
+* Clara
+* Modular
+* Fácil de evoluir
+* Fácil de conectar com backend posteriormente
+* Separada em componentes reutilizáveis
+* Sem excesso de lógica dentro de um único arquivo
+* Com boa organização de pastas
+* Com nomes de componentes claros e sem abreviações obscuras
+
+O usuário final da tela será:
+
+* Desenvolvedor
+* Data engineer
+* Arquiteto de dados
+* Analista técnico
+* Pessoa responsável por migração de dados entre bancos
+
+A experiência deve priorizar:
+
+* Clareza
+* Segurança
+* Rastreabilidade
+* Evitar erro humano
+* Feedback visual
+* Controle sobre o processo de migração
+
+---
+
+## F — Format / Formato esperado
+
+Implemente a tela usando a stack atual do projeto frontend.
+
+Caso o projeto use Vue 3, priorize:
+
+* Vue 3
+* Composition API
+* TypeScript, se o projeto já usar TypeScript
+* Tailwind CSS, se disponível
+* Pinia, se já estiver presente
+* Vue Router, se já estiver presente
+* Lucide Icons ou biblioteca de ícones já existente no projeto
+
+Caso ainda não exista uma biblioteca de canvas/nodes, implemente inicialmente uma versão visual mockada com cards posicionados em layout absoluto ou CSS grid, sem obrigatoriedade de drag-and-drop funcional na primeira versão.
+
+Se já existir ou for possível adicionar uma lib, considerar:
+
+* Vue Flow
+
+Mas não adicionar dependência nova sem verificar o padrão do projeto.
+
+A tela deve ficar acessível por uma rota semelhante a:
+
+```txt
+/new-migration/visual-builder
+```
+
+ou seguindo o padrão de rotas já existente no projeto.
+
+Crie ou organize os componentes preferencialmente assim:
+
+```txt
+src/
+  views/
+    migrations/
+      VisualMigrationBuilderView.vue
+
+  components/
+    migrations/
+      visual-builder/
+        MigrationSidebar.vue
+        MigrationTopbar.vue
+        ConnectionStatusBar.vue
+        DatabaseExplorerPanel.vue
+        DatabaseEntityListItem.vue
+        MigrationCanvas.vue
+        CanvasToolbar.vue
+        CanvasEntityNode.vue
+        CanvasConnectionEdge.vue
+        FlowValidationBar.vue
+        ExecutionPlanPanel.vue
+        ConfigureMappingDrawer.vue
+        FieldMappingTable.vue
+        StatusBadge.vue
+```
+
+Se a estrutura atual do projeto for diferente, adapte mantendo a mesma separação lógica.
+
+---
+
+## F — Foundations / Fundamentos obrigatórios
+
+### Design system e identidade visual
+
+Use tokens ou classes consistentes para manter a identidade visual:
+
+```txt
+Background principal: #0F172A
+Sidebar background: #0B1220
+Panel surface: #111827
+Panel surface alt: #1F2937
+Border: #334155
+Primary green: #22C55E
+Accent cyan: #06B6D4
+Warning orange: #F59E0B
+Error red: #EF4444
+Text primary: #F8FAFC
+Text secondary: #94A3B8
+```
+
+Se Tailwind estiver configurado, usar classes equivalentes:
+
+```txt
+bg-slate-950
+bg-slate-900
+bg-slate-800
+border-slate-700
+text-slate-100
+text-slate-400
+text-green-400
+text-cyan-400
+text-orange-400
+text-red-400
+```
+
+A interface deve parecer uma aplicação real, não um wireframe.
+
+### Acessibilidade
+
+Garanta:
+
+* Contraste adequado em tema dark
+* Botões com foco visível
+* Labels e aria-label quando necessário
+* Textos legíveis
+* Estados visuais não dependentes apenas de cor
+* Ícones acompanhados de texto quando a ação não for óbvia
+
+### Responsividade
+
+A tela principal é desktop-first, pois o builder visual é complexo.
+
+Mas deve haver comportamento mínimo para telas menores:
+
+* Sidebar pode colapsar ou ocultar
+* Painéis laterais podem virar drawers
+* Canvas pode manter scroll horizontal
+* Não quebrar visualmente em resoluções menores
+
+### Estados da interface
+
+Prever visualmente os seguintes estados:
+
+```txt
+Connected
+Disconnected
+Loading schema
+No entities found
+Entity not connected
+Mapping ready
+Mapping needs review
+Mapping warning
+Mapping error
+Unsaved changes
+Dry run running
+Dry run completed
+Dry run failed
+```
+
+### Segurança UX
+
+Como migração de dados é uma operação crítica, a tela não deve permitir avançar sem validação mínima.
+
+O botão **Continue to Review** deve estar visualmente disponível, mas pode ser desabilitado ou mostrar aviso se houver erro crítico.
+
+O botão **Run Dry Test** deve ser destacado como etapa recomendada antes de executar a migração real.
+
+---
+
+## Requisitos funcionais da tela
+
+### 1. Sidebar
+
+Criar uma sidebar fixa à esquerda com:
+
+* Logo Yggdrasil Migrator
+* Ícone estilo árvore/circuito
+* Menu:
+
+  * Dashboard
+  * New Migration, ativo
+  * Connections
+  * Migration Jobs
+  * Templates
+  * Logs
+  * Settings
+* Rodapé:
+
+  * Environment: Local
+  * Admin User
+  * [admin@yggdrasil.local](mailto:admin@yggdrasil.local)
+
+O item **New Migration** deve estar ativo, com borda ou fundo verde.
+
+---
+
+### 2. Topbar
+
+Criar uma topbar no topo com:
+
+* Ícone de voltar
+* Breadcrumb:
+
+```txt
+New Migration / Visual Builder
+```
+
+* Botões:
+
+  * Save Draft
+  * Run Dry Test
+  * Continue to Review
+
+No lado direito:
+
+* Toggle/indicador Dark
+* Ícone de ajuda
+* Avatar verde com letra A
+
+---
+
+### 3. Connection Status Bar
+
+Abaixo da topbar, criar uma barra mostrando as duas conexões:
+
+Source:
+
+```txt
+Source
+MongoDB
+source_db
+Connected
+24ms
+```
+
+Target:
+
+```txt
+Target
+PostgreSQL
+target_db
+Connected
+38ms
+```
+
+Entre as duas conexões, mostrar uma linha pontilhada ou conexão visual indicando source → target.
+
+Usar verde para status conectado.
+
+---
+
+### 4. Source Explorer
+
+Criar painel esquerdo com título:
+
+```txt
+Source Explorer
+```
+
+Subtítulo:
+
+```txt
+MongoDB source_db
+```
+
+Input de busca:
+
+```txt
+Search collections...
+```
+
+Listar collections mockadas:
+
+```txt
+accounts
+124,392 documents
+18 fields
+tags: collection, objectId, arrays, DBRef
+
+orders
+48,902 documents
+23 fields
+tags: collection, objectId, arrays, DBRef
+
+users
+22,120 documents
+15 fields
+tags: collection, objectId, arrays, DBRef
+
+invoices
+19,443 documents
+31 fields
+tags: collection, objectId, arrays, DBRef
+
+products
+9,800 documents
+12 fields
+tags: collection, objectId, arrays, DBRef
+```
+
+Cada item deve parecer arrastável, com ícone de grip/drag.
+
+---
+
+### 5. Target Explorer
+
+Criar painel direito com título:
+
+```txt
+Target Explorer
+```
+
+Subtítulo:
+
+```txt
+PostgreSQL target_db
+```
+
+Input de busca:
+
+```txt
+Search tables...
+```
+
+Botão:
+
+```txt
+Create target table
+```
+
+Listar tabelas mockadas:
+
+```txt
+clients
+8,201 rows
+14 columns
+tags: table, schema, constraints, indexes
+
+sales_orders
+48,902 rows
+21 columns
+tags: table, schema, constraints, indexes
+
+app_users
+22,120 rows
+16 columns
+tags: table, schema, constraints, indexes
+
+invoices
+0 rows
+24 columns
+tags: table, schema, constraints, indexes
+
+products
+9,800 rows
+12 columns
+tags: table, schema, constraints, indexes
+```
+
+Cada item deve parecer arrastável.
+
+---
+
+### 6. Migration Canvas
+
+Criar painel central com título:
+
+```txt
+Migration Canvas
+```
+
+Toolbar com:
+
+```txt
+Select
+Connect
+Auto Layout
+Validate
+Clear
+```
+
+Zoom controls:
+
+```txt
+100%
+-
++
+Fit View
+```
+
+O canvas deve ter fundo escuro com grid sutil pontilhado.
+
+Dentro do canvas, exibir nodes mockados.
+
+#### Node 1 — MongoDB accounts
+
+```txt
+MongoDB
+accounts
+Collection
+124,392 documents
+18 fields
+Nested: 3
+Arrays: 2
+DBRefs: 1
+Buttons: Preview, Map Fields
+```
+
+#### Node 2 — PostgreSQL clients
+
+```txt
+PostgreSQL
+clients
+Table
+14 columns
+8 required
+3 constraints
+2 indexes
+Buttons: Preview, Schema
+```
+
+Conectar Node 1 ao Node 2 com uma linha curva verde/ciano.
+
+Label da conexão:
+
+```txt
+accounts → clients
+Mapping 12/14 fields
+Needs review
+```
+
+Status: warning/orange.
+
+#### Node 3 — MongoDB orders
+
+```txt
+MongoDB
+orders
+Collection
+48,902 documents
+23 fields
+Nested: 2
+Arrays: 3
+DBRefs: 1
+```
+
+#### Node 4 — PostgreSQL sales_orders
+
+```txt
+PostgreSQL
+sales_orders
+Table
+21 columns
+0 required
+5 constraints
+3 indexes
+```
+
+Conectar Node 3 ao Node 4 com linha verde.
+
+Label da conexão:
+
+```txt
+orders → sales_orders
+Mapping ready
+```
+
+Status: valid/green.
+
+#### Node 5 — MongoDB users
+
+```txt
+MongoDB
+users
+Collection
+22,120 documents
+15 fields
+Nested: 1
+Arrays: 1
+DBRefs: 0
+```
+
+Esse node deve aparecer sem conexão, com borda tracejada cinza e badge:
+
+```txt
+Not connected
+```
+
+---
+
+### 7. Execution Plan Panel
+
+Criar painel flutuante dentro do canvas, no canto direito ou inferior direito:
+
+```txt
+Execution Plan
+
+1. accounts → clients
+2. orders → sales_orders
+
+Strategy
+Dependency-based
+
+Estimated records
+173,294
+```
+
+---
+
+### 8. Flow Validation Bar
+
+Criar barra inferior com resumo de validação:
+
+```txt
+Flow Validation
+
+2 entity mappings configured
+1 entity not connected
+38 fields mapped
+3 required target fields missing
+1 DBRef needs manual configuration
+0 critical errors
+```
+
+Usar ícones e cores:
+
+* Verde para sucesso
+* Laranja para alerta
+* Cinza para neutro
+* Vermelho para erro
+
+---
+
+### 9. Configure Mapping Drawer
+
+Criar um drawer lateral direito, aberto por padrão para esta primeira versão, com título:
+
+```txt
+Configure Mapping
+```
+
+Subtítulo:
+
+```txt
+MongoDB.accounts → PostgreSQL.clients
+```
+
+Tabs:
+
+```txt
+Field Mapping
+Transformations
+```
+
+A tab **Field Mapping** deve estar ativa.
+
+Criar tabela compacta:
+
+```txt
+Source Field       Target Field       Transform           Status
+
+_id                id                 ObjectId to String  Valid
+name               name_client        None                Valid
+documentId         document           None                Valid
+address.city       city               Extract             Valid
+address.state      state              Extract             Valid
+zipCode            zip_code           None                Valid
+company.$id        company_id         DBRef Resolve       Warning
+createdAt          created_at         Date Format         Valid
+status             status             None                Valid
+tags               tags               Array to JSON       Valid
+notes              notes              None                Valid
+phone              phone              None                Valid
+email              email              None                Valid
+_class             _class             None                Ignored
+```
+
+Status:
+
+* Valid: verde
+* Warning: laranja
+* Ignored: cinza
+
+No rodapé do drawer:
+
+```txt
+Validate Mapping
+Save Mapping
+```
+
+O botão **Save Mapping** deve ser primário verde.
+
+---
+
+## Dados mockados
+
+Criar dados mockados em arquivo separado, por exemplo:
+
+```txt
+src/mocks/visualMigrationBuilder.mock.ts
+```
+
+Sugestão de estruturas:
+
+```ts
+type DatabaseEngine = 'mongodb' | 'postgresql';
+
+type DatabaseEntity = {
+  id: string;
+  name: string;
+  engine: DatabaseEngine;
+  kind: 'collection' | 'table';
+  recordsLabel: string;
+  fieldsCount: number;
+  metadata: string[];
+};
+
+type CanvasNode = {
+  id: string;
+  entityId: string;
+  x: number;
+  y: number;
+  status: 'ready' | 'needs_review' | 'not_connected' | 'error';
+};
+
+type CanvasConnection = {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label: string;
+  status: 'ready' | 'needs_review' | 'error';
+  mappedFields: number;
+  totalFields: number;
+};
+
+type FieldMapping = {
+  id: string;
+  sourceField: string;
+  targetField: string;
+  transform: string;
+  status: 'valid' | 'warning' | 'ignored' | 'error';
+};
+```
+
+---
+
+## Critérios de aceite
+
+A entrega será considerada correta se:
+
+1. A tela Visual Migration Builder existir e estiver navegável.
+2. A identidade visual dark do Yggdrasil Migrator for seguida.
+3. A sidebar, topbar e status bar estiverem presentes.
+4. Source Explorer e Target Explorer listarem entidades mockadas.
+5. O canvas central exibir pelo menos 5 nodes.
+6. Existirem conexões visuais entre:
+
+   * accounts → clients
+   * orders → sales_orders
+7. O node users aparecer como não conectado.
+8. O drawer Configure Mapping estiver aberto e funcional visualmente.
+9. A tabela de field mapping estiver renderizada.
+10. A barra de validação inferior estiver presente.
+11. O código estiver componentizado.
+12. Não existirem textos genéricos fora do contexto de migração.
+13. A tela parecer uma aplicação real, não um wireframe.
+14. O layout deve funcionar bem em desktop 16:9.
+15. Não quebrar em telas menores, mesmo que o canvas tenha scroll.
+
+---
+
+## Sugestões técnicas
+
+Se for Vue 3:
+
+* Usar `script setup`
+* Criar componentes pequenos
+* Evitar lógica pesada no template
+* Usar computed para status e classes visuais
+* Usar arrays mockados para renderização
+* Criar helpers para classes de status
+
+Exemplo de helper:
+
+```ts
+function getStatusClasses(status: string) {
+  const statusMap = {
+    ready: 'border-green-500/40 text-green-400 bg-green-500/10',
+    needs_review: 'border-orange-500/40 text-orange-400 bg-orange-500/10',
+    not_connected: 'border-slate-600 text-slate-400 bg-slate-800/40',
+    error: 'border-red-500/40 text-red-400 bg-red-500/10',
+  };
+
+  return statusMap[status] ?? statusMap.not_connected;
+}
+```
+
+---
+
+## Observação importante
+
+Nesta primeira implementação, o drag-and-drop real pode ser deixado como evolução, desde que:
+
+* Os itens pareçam arrastáveis visualmente.
+* O canvas represente claramente os nodes.
+* As conexões estejam visíveis.
+* A arquitetura permita substituir depois por Vue Flow ou outra lib.
+
+Caso seja simples adicionar drag-and-drop sem impactar o projeto, implementar usando a biblioteca ou padrão já existente no projeto.
+
+Não adicionar dependências externas sem avaliar o padrão atual do projeto.
+
+---
+
+## Resultado esperado
+
+Ao final, deve existir uma tela moderna, técnica e profissional para o **Yggdrasil Migrator**, com a experiência de um **Visual Migration Builder**, permitindo ao usuário entender visualmente:
+
+* Quais entidades existem no source
+* Quais entidades existem no target
+* Quais entidades serão migradas
+* Como elas estão conectadas
+* Quais mappings estão prontos
+* Quais mappings precisam de revisão
+* Qual será o plano de execução
+* Quais problemas impedem ou alertam antes da migração

@@ -18,6 +18,22 @@ class ApiClient {
     return this.client.post('/api/explore/validate', payload)
   }
 
+  async validatePostgresConnection(payload: any) {
+    return this.client.post('/api/explore/postgres/validate', payload)
+  }
+
+  async loadPostgresDatabases(payload: any) {
+    return this.client.post('/api/explore/postgres/databases', payload)
+  }
+
+  async loadPostgresSchemas(payload: any) {
+    return this.client.post('/api/explore/postgres/schemas', payload)
+  }
+
+  async loadPostgresTables(payload: any) {
+    return this.client.post('/api/explore/postgres/tables', payload)
+  }
+
   async loadMongoDatabases(payload: any) {
     return this.client.post('/api/explore/databases', payload)
   }

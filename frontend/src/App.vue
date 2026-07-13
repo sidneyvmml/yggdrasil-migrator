@@ -41,6 +41,8 @@
           >
             Templates
           </button>
+          <button class="global-nav-item" type="button">Logs</button>
+          <button class="global-nav-item" type="button">Settings</button>
         </nav>
         <div class="global-sidebar-footer">
           <div class="global-env">Environment: Local</div>
@@ -303,7 +305,7 @@
                       <div class="engine-brand-text">
                         <div class="engine-title-with-badge">
                           <h4>{{ eng.name }}</h4>
-                          <span v-if="eng.name === 'Keycloak'" class="engine-badge">Keycloak to Keycloak only</span>
+                          <span v-if="eng.name === 'Keycloak'" class="engine-badge">{{ keycloakEngineBadgeText }}</span>
                         </div>
                       </div>
                     </div>
@@ -317,7 +319,7 @@
                   <div class="engine-actions">
                     <button
                       :class="['wizard-secondary', 'engine-action-button', 'source', { active: engine.selectedSourceEngine.value === eng.name }]"
-                      :disabled="!eng.selectable"
+                      :disabled="isSourceSelectionDisabled(eng)"
                       :aria-pressed="engine.selectedSourceEngine.value === eng.name"
                       @click="engine.setSourceEngine(eng.name)"
                     >
@@ -325,7 +327,7 @@
                     </button>
                     <button
                       :class="['wizard-secondary', 'engine-action-button', 'target', { active: engine.selectedTargetEngine.value === eng.name }]"
-                      :disabled="!eng.selectable"
+                      :disabled="isTargetSelectionDisabled(eng)"
                       :aria-pressed="engine.selectedTargetEngine.value === eng.name"
                       @click="engine.setTargetEngine(eng.name)"
                     >
@@ -422,23 +424,267 @@
                     {{ sourceSamplesLoading ? 'Carregando...' : 'Visualizar Dados' }}
                   </button>
 
+                  <div v-if="connection.mongoConnectionSource.collection" class="preview-filter-controls">
+                    <div class="preview-filter-controls-grid">
+                      <label class="connection-field-label preview-limit-field">
+                        Exibir
+                        <select v-model.number="sourcePreviewLimit" class="form-select" @change="onSourcePreviewLimitChange">
+                          <option v-for="size in sourcePreviewLimitOptions" :key="`source-preview-limit-${size}`" :value="size">
+                            {{ size }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <label class="connection-field-label preview-type-field">
+                        Tipo de filtro
+                        <select v-model="sourcePreviewFilterMode" class="form-select">
+                          <option value="none">Sem filtro</option>
+                          <option value="field">Por campo existente</option>
+                          <option value="fieldValue">Por valor do campo</option>
+                          <option value="query">Por query MongoDB</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div v-if="sourcePreviewFilterMode === 'field'" class="preview-filter-inline-grid">
+                      <label class="connection-field-label preview-inline-field">
+                        Campo
+                        <input v-model.trim="sourcePreviewFilterField" type="text" placeholder="Ex.: name" class="form-input" />
+                      </label>
+                    </div>
+
+                    <div v-if="sourcePreviewFilterMode === 'fieldValue'" class="preview-filter-inline-grid preview-filter-inline-grid-value">
+                      <label class="connection-field-label preview-inline-field">
+                        Campo
+                        <input v-model.trim="sourcePreviewFilterField" type="text" placeholder="Ex.: name" class="form-input" />
+                      </label>
+                      <label class="connection-field-label preview-inline-field">
+                        Condicao
+                        <select v-model="sourcePreviewFilterOperator" class="form-select">
+                          <option value="eq">igual</option>
+                          <option value="ne">diferente</option>
+                          <option value="contains">contem</option>
+                          <option value="gt">maior que</option>
+                          <option value="gte">maior ou igual</option>
+                          <option value="lt">menor que</option>
+                          <option value="lte">menor ou igual</option>
+                        </select>
+                      </label>
+                      <label class="connection-field-label preview-inline-field">
+                        Valor
+                        <input v-model="sourcePreviewFilterValue" type="text" placeholder="Ex.: Alice ou 10" class="form-input" />
+                      </label>
+                    </div>
+
+                    <label v-if="sourcePreviewFilterMode === 'query'" class="connection-field-label preview-query-field">
+                      Query MongoDB (JSON)
+                      <textarea
+                        v-model="sourcePreviewMongoQuery"
+                        class="form-input form-input-mono"
+                        placeholder='Ex.: { "name": "", "status": { "$ne": "inactive" } }'
+                      ></textarea>
+                    </label>
+                  </div>
+
+                  <p v-if="sourcePreviewFilterError" class="connections-next-hint preview-filter-error">
+                    {{ sourcePreviewFilterError }}
+                  </p>
+
                   <div v-if="sourceSamples.length" class="samples-list" style="margin-top:12px">
-                    <h4>Documentos (primeiros 10)</h4>
+                    <h4>Documentos (primeiros {{ sourcePreviewLimit }})</h4>
                     <label class="preview-merge-toggle" style="margin-top: 8px; margin-bottom: 8px;">
                       <input v-model="useSelectedBaseDocument" type="checkbox" />
                       Usar documento-base para mapear campos (opcional)
                     </label>
                     <div class="samples-container">
-                      <div v-for="(item, idx) in sourceSamples" :key="idx" class="sample-item">
-                        <label v-if="useSelectedBaseDocument && getDocumentId(item)" class="wizard-rule-mode-toggle-label" style="margin-bottom: 8px;">
+                      <div
+                        v-for="(item, idx) in sourceSamples"
+                        :key="idx"
+                        :class="[
+                          'sample-item',
+                          {
+                            'sample-item-selected': useSelectedBaseDocument && selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx),
+                          },
+                        ]"
+                      >
+                        <label v-if="useSelectedBaseDocument" class="wizard-rule-mode-toggle-label" style="margin-bottom: 8px;">
                           <input
                             type="radio"
                             name="source-base-document"
-                            :checked="selectedSourceBaseDocumentId === getDocumentId(item)"
-                            @change="selectSourceBaseDocument(item)"
+                            :checked="selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx)"
+                            @change="selectSourceBaseDocument(item, idx)"
                           />
                           <span>Documento base #{{ idx + 1 }}</span>
                         </label>
+                        <div
+                          v-if="useSelectedBaseDocument && selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx)"
+                          class="sample-item-selected-badge"
+                        >
+                          Selecionado
+                        </div>
+                        <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else-if="ui.migrationMode.value === 'simple' && engine.selectedSourceEngine.value === 'PostgreSQL'">
+                  <div class="connection-action-row">
+                    <button class="wizard-secondary" :disabled="sourceDatabasesLoading || !sourceConnected" @click="loadSourceDatabases">
+                      {{ sourceDatabasesLoading ? 'Carregando...' : 'Carregar Bancos de Dados' }}
+                    </button>
+                    <button class="wizard-secondary" :disabled="sourceSchemasLoading || !connection.mongoConnectionSource.database || !sourceConnected" @click="loadSourceSchemas">
+                      {{ sourceSchemasLoading ? 'Carregando...' : 'Carregar Schemas' }}
+                    </button>
+                    <button class="wizard-secondary" :disabled="sourceCollectionsLoading || !connection.mongoConnectionSource.database || !sourceSelectedSchema || !sourceConnected" @click="loadSourceCollections">
+                      {{ sourceCollectionsLoading ? 'Carregando...' : 'Carregar Tabelas' }}
+                    </button>
+                  </div>
+
+                  <label v-if="sourceDatabasesSafe.length" class="connection-field-label">
+                    Database
+                    <select v-model="connection.mongoConnectionSource.database" class="form-select" @change="onSourceDatabaseChange">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="db in sourceDatabasesSafe" :key="`source-${db}`" :value="db">{{ db }}</option>
+                    </select>
+                  </label>
+
+                  <label v-if="sourceSchemasSafe.length" class="connection-field-label">
+                    Schema
+                    <select v-model="sourceSelectedSchema" class="form-select" @change="onSourceSchemaChange">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="schema in sourceSchemasSafe" :key="`source-schema-${schema}`" :value="schema">{{ schema }}</option>
+                    </select>
+                  </label>
+
+                  <label v-if="sourceCollectionsSafe.length" class="connection-field-label">
+                    Table
+                    <select v-model="connection.mongoConnectionSource.collection" class="form-select">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="table in sourceCollectionsSafe" :key="`source-table-${table}`" :value="table">{{ table }}</option>
+                    </select>
+                  </label>
+                </template>
+
+                <template v-else-if="ui.migrationMode.value === 'simple' && engine.selectedSourceEngine.value === 'Keycloak'">
+                  <div class="connection-action-row">
+                    <button class="primary-button" :disabled="sourceSamplesLoading || !sourceConnected" @click="viewSourceKeycloakUsers">
+                      {{ sourceSamplesLoading ? 'Carregando...' : 'Visualizar usuarios' }}
+                    </button>
+                  </div>
+
+                  <div class="preview-filter-controls">
+                    <div class="preview-filter-controls-grid preview-filter-controls-grid-with-action">
+                      <label class="connection-field-label preview-limit-field">
+                        Exibir
+                        <select v-model.number="sourceKeycloakPreviewLimit" class="form-select" @change="onSourceKeycloakPreviewLimitChange">
+                          <option v-for="size in keycloakPreviewLimitOptions" :key="`source-kc-preview-limit-${size}`" :value="size">
+                            {{ size }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <label class="connection-field-label preview-type-field">
+                        Tipo de filtro
+                        <select v-model="sourceKeycloakPreviewFilterMode" class="form-select">
+                          <option value="none">Sem filtro</option>
+                          <option value="field">Por chave existente</option>
+                          <option value="fieldValue">Por chave-valor</option>
+                        </select>
+                      </label>
+
+                      <div class="preview-export-field">
+                        <button
+                          class="wizard-secondary preview-export-button"
+                          :disabled="sourceExporting || !sourceConnected"
+                          @click="exportKeycloakUsers('source')"
+                        >
+                          {{ sourceExporting ? 'Exportando...' : 'Exportar todos' }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div v-if="sourceKeycloakPreviewFilterMode === 'field'" class="preview-filter-inline-grid">
+                      <label class="connection-field-label preview-inline-field">
+                        Chave
+                        <input v-model.trim="sourceKeycloakPreviewFilterField" type="text" placeholder="Ex.: username" class="form-input" />
+                      </label>
+                    </div>
+
+                    <div v-if="sourceKeycloakPreviewFilterMode === 'fieldValue'" class="preview-filter-inline-grid preview-filter-inline-grid-value">
+                      <label class="connection-field-label preview-inline-field preview-inline-field-key">
+                        Chave
+                        <input v-model.trim="sourceKeycloakPreviewFilterField" type="text" placeholder="Ex.: username" class="form-input" />
+                      </label>
+                      <label class="connection-field-label preview-inline-field preview-inline-field-operator">
+                        Condicao
+                        <select v-model="sourceKeycloakPreviewFilterOperator" class="form-select">
+                          <option value="eq">igual</option>
+                          <option value="ne">diferente</option>
+                          <option value="null">nulo</option>
+                          <option value="notNull">nao nulo</option>
+                          <option value="contains">contem</option>
+                          <option value="gt">maior que</option>
+                          <option value="gte">maior ou igual</option>
+                          <option value="lt">menor que</option>
+                          <option value="lte">menor ou igual</option>
+                        </select>
+                      </label>
+                      <label
+                        v-if="!isNullKeycloakOperator(sourceKeycloakPreviewFilterOperator)"
+                        class="connection-field-label preview-inline-field preview-inline-field-value"
+                      >
+                        Valor
+                        <input v-model="sourceKeycloakPreviewFilterValue" type="text" placeholder="Ex.: admin" class="form-input" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <p v-if="sourceKeycloakPreviewFilterError" class="connections-next-hint preview-filter-error">
+                    {{ sourceKeycloakPreviewFilterError }}
+                  </p>
+
+                  <p v-if="sourceUsersPreviewError" class="connections-next-hint" style="margin-top: 10px;">
+                    {{ sourceUsersPreviewError }}
+                  </p>
+
+                  <div v-if="sourcePreviewKind === 'keycloak' && sourceSamples.length" class="samples-list" style="margin-top:12px">
+                    <h4>Usuarios (primeiros {{ sourceKeycloakPreviewLimit }})</h4>
+                    <label class="preview-merge-toggle" style="margin-top: 8px; margin-bottom: 8px;">
+                      <input v-model="useSelectedBaseDocument" type="checkbox" />
+                      Usar objeto-base para mapear campos (opcional)
+                    </label>
+                    <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                      <span v-for="field in sourceKeycloakModelFields" :key="`kc-source-model-${field}`" class="preview-field-tag mapped">
+                        {{ field }}
+                      </span>
+                    </div>
+                    <div class="samples-container">
+                      <div
+                        v-for="(item, idx) in sourceSamples"
+                        :key="`kc-source-${idx}`"
+                        :class="[
+                          'sample-item',
+                          {
+                            'sample-item-selected': useSelectedBaseDocument && selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx),
+                          },
+                        ]"
+                      >
+                        <label v-if="useSelectedBaseDocument" class="wizard-rule-mode-toggle-label" style="margin-bottom: 8px;">
+                          <input
+                            type="radio"
+                            name="source-keycloak-base-document"
+                            :checked="selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx)"
+                            @change="selectSourceBaseDocument(item, idx)"
+                          />
+                          <span>Objeto base #{{ idx + 1 }}</span>
+                        </label>
+                        <div
+                          v-if="useSelectedBaseDocument && selectedSourceBaseDocumentKey === getDocumentSelectionKey(item, idx)"
+                          class="sample-item-selected-badge"
+                        >
+                          Selecionado
+                        </div>
                         <pre>{{ JSON.stringify(item, null, 2) }}</pre>
                       </div>
                     </div>
@@ -506,6 +752,141 @@
                     </div>
                   </div>
                 </template>
+
+                <template v-else-if="ui.migrationMode.value === 'simple' && engine.selectedTargetEngine.value === 'PostgreSQL'">
+                  <div class="connection-action-row">
+                    <button class="wizard-secondary" :disabled="targetDatabasesLoading || !targetConnected" @click="loadTargetDatabases">
+                      {{ targetDatabasesLoading ? 'Carregando...' : 'Carregar Bancos de Dados' }}
+                    </button>
+                    <button class="wizard-secondary" :disabled="targetSchemasLoading || !connection.mongoConnectionTarget.database || !targetConnected" @click="loadTargetSchemas">
+                      {{ targetSchemasLoading ? 'Carregando...' : 'Carregar Schemas' }}
+                    </button>
+                    <button class="wizard-secondary" :disabled="targetCollectionsLoading || !connection.mongoConnectionTarget.database || !targetSelectedSchema || !targetConnected" @click="loadTargetCollections">
+                      {{ targetCollectionsLoading ? 'Carregando...' : 'Carregar Tabelas' }}
+                    </button>
+                  </div>
+
+                  <label v-if="targetDatabasesSafe.length" class="connection-field-label">
+                    Database
+                    <select v-model="connection.mongoConnectionTarget.database" class="form-select" @change="onTargetDatabaseChange">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="db in targetDatabasesSafe" :key="`target-${db}`" :value="db">{{ db }}</option>
+                    </select>
+                  </label>
+
+                  <label v-if="targetSchemasSafe.length" class="connection-field-label">
+                    Schema
+                    <select v-model="targetSelectedSchema" class="form-select" @change="onTargetSchemaChange">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="schema in targetSchemasSafe" :key="`target-schema-${schema}`" :value="schema">{{ schema }}</option>
+                    </select>
+                  </label>
+
+                  <label v-if="targetCollectionsSafe.length" class="connection-field-label">
+                    Table
+                    <select v-model="connection.mongoConnectionTarget.collection" class="form-select">
+                      <option value="">-- Selecione --</option>
+                      <option v-for="table in targetCollectionsSafe" :key="`target-table-${table}`" :value="table">{{ table }}</option>
+                    </select>
+                  </label>
+                </template>
+
+                <template v-else-if="ui.migrationMode.value === 'simple' && engine.selectedTargetEngine.value === 'Keycloak'">
+                  <div class="connection-action-row">
+                    <button class="primary-button" :disabled="destinationSamplesLoading || !targetConnected" @click="viewTargetKeycloakUsers">
+                      {{ destinationSamplesLoading ? 'Carregando...' : 'Visualizar usuarios' }}
+                    </button>
+                  </div>
+
+                  <div class="preview-filter-controls">
+                    <div class="preview-filter-controls-grid preview-filter-controls-grid-with-action">
+                      <label class="connection-field-label preview-limit-field">
+                        Exibir
+                        <select v-model.number="targetKeycloakPreviewLimit" class="form-select" @change="onTargetKeycloakPreviewLimitChange">
+                          <option v-for="size in keycloakPreviewLimitOptions" :key="`target-kc-preview-limit-${size}`" :value="size">
+                            {{ size }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <label class="connection-field-label preview-type-field">
+                        Tipo de filtro
+                        <select v-model="targetKeycloakPreviewFilterMode" class="form-select">
+                          <option value="none">Sem filtro</option>
+                          <option value="field">Por chave existente</option>
+                          <option value="fieldValue">Por chave-valor</option>
+                        </select>
+                      </label>
+
+                      <div class="preview-export-field">
+                        <button
+                          class="wizard-secondary preview-export-button"
+                          :disabled="targetExporting || !targetConnected"
+                          @click="exportKeycloakUsers('target')"
+                        >
+                          {{ targetExporting ? 'Exportando...' : 'Exportar todos' }}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div v-if="targetKeycloakPreviewFilterMode === 'field'" class="preview-filter-inline-grid">
+                      <label class="connection-field-label preview-inline-field">
+                        Chave
+                        <input v-model.trim="targetKeycloakPreviewFilterField" type="text" placeholder="Ex.: username" class="form-input" />
+                      </label>
+                    </div>
+
+                    <div v-if="targetKeycloakPreviewFilterMode === 'fieldValue'" class="preview-filter-inline-grid preview-filter-inline-grid-value">
+                      <label class="connection-field-label preview-inline-field preview-inline-field-key">
+                        Chave
+                        <input v-model.trim="targetKeycloakPreviewFilterField" type="text" placeholder="Ex.: username" class="form-input" />
+                      </label>
+                      <label class="connection-field-label preview-inline-field preview-inline-field-operator">
+                        Condicao
+                        <select v-model="targetKeycloakPreviewFilterOperator" class="form-select">
+                          <option value="eq">igual</option>
+                          <option value="ne">diferente</option>
+                          <option value="null">nulo</option>
+                          <option value="notNull">nao nulo</option>
+                          <option value="contains">contem</option>
+                          <option value="gt">maior que</option>
+                          <option value="gte">maior ou igual</option>
+                          <option value="lt">menor que</option>
+                          <option value="lte">menor ou igual</option>
+                        </select>
+                      </label>
+                      <label
+                        v-if="!isNullKeycloakOperator(targetKeycloakPreviewFilterOperator)"
+                        class="connection-field-label preview-inline-field preview-inline-field-value"
+                      >
+                        Valor
+                        <input v-model="targetKeycloakPreviewFilterValue" type="text" placeholder="Ex.: admin" class="form-input" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <p v-if="targetKeycloakPreviewFilterError" class="connections-next-hint preview-filter-error">
+                    {{ targetKeycloakPreviewFilterError }}
+                  </p>
+
+                  <p v-if="targetUsersPreviewError" class="connections-next-hint" style="margin-top: 10px;">
+                    {{ targetUsersPreviewError }}
+                  </p>
+
+                  <div v-if="targetPreviewKind === 'keycloak' && destinationSamples.length" class="samples-list" style="margin-top:12px">
+                    <h4>Usuarios (primeiros {{ targetKeycloakPreviewLimit }})</h4>
+                    <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                      <span v-for="field in targetKeycloakModelFields" :key="`kc-target-model-${field}`" class="preview-field-tag mapped">
+                        {{ field }}
+                      </span>
+                    </div>
+                    <div class="samples-container">
+                      <div v-for="(item, idx) in destinationSamples" :key="`kc-target-${idx}`" class="sample-item">
+                        <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -521,6 +902,37 @@
             </p>
           </section>
 
+          <section v-else-if="ui.activeTab.value === 'mapping' && showVisualMigrationBuilder" class="panel">
+            <VisualMigrationBuilderView
+              :source-engine="engine.selectedSourceEngine.value"
+              :target-engine="engine.selectedTargetEngine.value"
+              :source-database="connection.mongoConnectionSource.database || 'source_db'"
+              :target-database="connection.mongoConnectionTarget.database || 'target_db'"
+              :source-entity-names="sourceEntityNamesForVisualBuilder"
+              :target-entity-names="targetEntityNamesForVisualBuilder"
+              :source-samples="sourceSamples"
+              :target-samples="destinationSamples"
+              :source-connection="{
+                connectionString: connection.mongoConnectionSource.connectionString,
+                database: connection.mongoConnectionSource.database,
+                authEnabled: connection.mongoConnectionSource.authEnabled,
+                username: connection.mongoConnectionSource.username,
+                password: connection.mongoConnectionSource.password,
+                authSource: connection.mongoConnectionSource.authSource,
+              }"
+              :target-connection="{
+                connectionString: connection.mongoConnectionTarget.connectionString,
+                database: connection.mongoConnectionTarget.database,
+                authEnabled: connection.mongoConnectionTarget.authEnabled,
+                username: connection.mongoConnectionTarget.username,
+                password: connection.mongoConnectionTarget.password,
+                authSource: connection.mongoConnectionTarget.authSource,
+              }"
+              @back="ui.setActiveTab('connections')"
+              @continue="ui.setActiveTab('preview')"
+            />
+          </section>
+
           <section v-else-if="ui.activeTab.value === 'mapping'" class="panel wizard-panel">
             <div class="wizard-shell">
               <div class="wizard-main">
@@ -528,11 +940,17 @@
                   <div>
                     <h1>Field Mapping &amp; Transformation</h1>
                     <p>Define how data from the source will be mapped and transformed to the target.</p>
-                    <div v-if="engine.selectedSourceEngine.value === 'Keycloak' && engine.selectedTargetEngine.value === 'Keycloak'" style="margin-top: 10px; max-width: 360px;">
+                    <div v-if="engine.selectedTargetEngine.value === 'Keycloak'" style="margin-top: 10px; max-width: 460px; display: grid; gap: 10px;">
                       <label>
-                        Campo de origem para username no destino
+                        Source campo chave
                         <select v-model="migration.keycloakUsernameSourceField.value" class="form-select" style="margin-top: 6px;">
                           <option v-for="field in sourceFieldPaths" :key="`kc-username-${field}`" :value="field">{{ field }}</option>
+                        </select>
+                      </label>
+                      <label>
+                        Target campo chave
+                        <select v-model="migration.keycloakTargetMatchField.value" class="form-select" style="margin-top: 6px;">
+                          <option v-for="field in destinationFieldPaths" :key="`kc-target-key-${field}`" :value="field">{{ field }}</option>
                         </select>
                       </label>
                     </div>
@@ -711,6 +1129,14 @@
 
                     <template v-if="addRuleMode === 'new'">
                       <label class="wizard-rule-mode-toggle-label">
+                        <input type="checkbox" v-model="addRuleGenerateId" @change="onAddRuleGenerateIdChange" />
+                        <span>Gerar _id</span>
+                      </label>
+
+                      <p v-if="addRuleGenerateId" class="connections-next-hint">O target field sera definido como _id e um novo identificador binario sera gerado para cada documento no target.</p>
+
+                      <template v-if="!addRuleGenerateId">
+                      <label class="wizard-rule-mode-toggle-label">
                         <input type="checkbox" v-model="addRuleNoSource" />
                         <span>Nao existe no source (campo novo)</span>
                       </label>
@@ -726,6 +1152,7 @@
                       <select v-model="addRuleSourceField" class="wizard-select">
                         <option v-for="field in sourceFieldPaths" :key="`new-${field}`" :value="field">{{ field }}</option>
                       </select>
+                      </template>
                       </template>
                     </template>
 
@@ -745,11 +1172,20 @@
                     </template>
 
                     <label class="wizard-modal-label">Target field name</label>
-                    <input v-model="addRuleTargetField" class="wizard-select" placeholder="ex: full_name" />
+                    <input v-model="addRuleTargetField" class="wizard-select" placeholder="ex: full_name" :disabled="addRuleGenerateId" />
+
+                    <label v-if="!addRuleGenerateId" class="wizard-modal-label">Target field type</label>
+                    <select v-if="!addRuleGenerateId" v-model="addRuleTargetType" class="wizard-select">
+                      <option value="auto">auto (sem conversao)</option>
+                      <option value="string">string</option>
+                      <option value="date">date</option>
+                      <option value="integer">integer</option>
+                    </select>
 
                     <p v-if="addRuleError" class="wizard-modal-error">{{ addRuleError }}</p>
 
                     <div class="wizard-modal-actions">
+                      <button class="wizard-secondary" @click="applyNotificationPreset">Notification Preset</button>
                       <button class="wizard-secondary" @click="closeAddRuleModal">Cancel</button>
                       <button class="wizard-primary" @click="submitAddRule">Add</button>
                     </div>
@@ -806,6 +1242,10 @@
                       :disabled="!defaultValueEnabledDraft"
                       placeholder="ex: active | 10 | true | JSON object"
                     />
+
+                    <p class="connections-next-hint">
+                      Use JSON for nested objects and placeholders like <code>&#123;&#123;notification.acceptance&#125;&#125;</code> or <code>&#123;&#123;notification.date|date&#125;&#125;</code> to read from the source.
+                    </p>
 
                     <p v-if="defaultValueError" class="wizard-modal-error">{{ defaultValueError }}</p>
 
@@ -890,7 +1330,7 @@
                   </label>
                   <label v-if="hasStarredsArray" class="preview-merge-toggle">
                     <input v-model="extractStarredsEnabled" type="checkbox" />
-                    Extrair somente starreds.starred = true (Favorites)
+                    Extrair itens de starreds (apenas quando o array nao estiver vazio)
                   </label>
                   <label class="preview-merge-toggle">
                     <input v-model="mergeDocumentsEnabled" type="checkbox" />
@@ -1036,13 +1476,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   useConnection,
   useMigration,
   useJobs,
   useTemplates,
   useEngine,
+  ENABLE_MONGO_TO_KEYCLOAK_MIGRATION,
   useTheme,
   useUI,
   MIGRATION_FLOW_TABS,
@@ -1055,6 +1496,7 @@ import {
   ThemeSwitcher,
 } from '@/components'
 import { apiClient } from '@/services/api'
+import VisualMigrationBuilderView from '@/views/migrations/VisualMigrationBuilderView.vue'
 
 // Composables
 const ui = useUI()
@@ -1139,17 +1581,27 @@ const dashboardActivity = [
 ]
 
 const sourceDatabases = ref<string[]>([])
+const sourceSchemas = ref<string[]>([])
 const sourceCollections = ref<string[]>([])
 const targetDatabases = ref<string[]>([])
+const targetSchemas = ref<string[]>([])
 const targetCollections = ref<string[]>([])
 const sourceDatabasesLoading = ref(false)
+const sourceSchemasLoading = ref(false)
 const sourceCollectionsLoading = ref(false)
 const targetDatabasesLoading = ref(false)
+const targetSchemasLoading = ref(false)
 const targetCollectionsLoading = ref(false)
+const sourceSelectedSchema = ref('')
+const targetSelectedSchema = ref('')
 const mappingNavigationLoading = ref(false)
+const showVisualMigrationBuilder = ref(true)
 
 const sourceDatabasesSafe = computed(() =>
   Array.isArray(sourceDatabases.value) ? sourceDatabases.value : []
+)
+const sourceSchemasSafe = computed(() =>
+  Array.isArray(sourceSchemas.value) ? sourceSchemas.value : []
 )
 const sourceCollectionsSafe = computed(() =>
   Array.isArray(sourceCollections.value) ? sourceCollections.value : []
@@ -1157,19 +1609,68 @@ const sourceCollectionsSafe = computed(() =>
 const targetDatabasesSafe = computed(() =>
   Array.isArray(targetDatabases.value) ? targetDatabases.value : []
 )
+const targetSchemasSafe = computed(() =>
+  Array.isArray(targetSchemas.value) ? targetSchemas.value : []
+)
 const targetCollectionsSafe = computed(() =>
   Array.isArray(targetCollections.value) ? targetCollections.value : []
 )
+
+const sourceEntityNamesForVisualBuilder = computed(() => {
+  if (sourceCollectionsSafe.value.length > 0) {
+    return sourceCollectionsSafe.value
+  }
+
+  const selected = connection.mongoConnectionSource.collection?.trim()
+  return selected ? [selected] : []
+})
+
+const targetEntityNamesForVisualBuilder = computed(() => {
+  if (targetCollectionsSafe.value.length > 0) {
+    return targetCollectionsSafe.value
+  }
+
+  const selected = connection.mongoConnectionTarget.collection?.trim()
+  return selected ? [selected] : []
+})
 
 const sourceSamples = ref<Record<string, any>[]>([])
 const destinationSamples = ref<Record<string, any>[]>([])
 const sourceSamplesLoading = ref(false)
 const destinationSamplesLoading = ref(false)
+const sourcePreviewLimitOptions = [10, 20, 50, 100, 200]
+const keycloakPreviewLimitOptions = [10, 20, 50, 100]
+const sourcePreviewLimit = ref(10)
+const sourcePreviewFilterMode = ref<'none' | 'field' | 'fieldValue' | 'query'>('none')
+const sourcePreviewFilterField = ref('')
+const sourcePreviewFilterOperator = ref<'eq' | 'ne' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte'>('eq')
+const sourcePreviewFilterValue = ref('')
+const sourcePreviewMongoQuery = ref('{\n  \n}')
+const sourcePreviewFilterError = ref('')
+const sourceKeycloakPreviewLimit = ref(10)
+const sourceKeycloakPreviewFilterMode = ref<'none' | 'field' | 'fieldValue'>('none')
+const sourceKeycloakPreviewFilterField = ref('')
+const sourceKeycloakPreviewFilterOperator = ref<'eq' | 'ne' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte' | 'null' | 'notNull'>('eq')
+const sourceKeycloakPreviewFilterValue = ref('')
+const sourceKeycloakPreviewFilterError = ref('')
+const targetKeycloakPreviewLimit = ref(10)
+const targetKeycloakPreviewFilterMode = ref<'none' | 'field' | 'fieldValue'>('none')
+const targetKeycloakPreviewFilterField = ref('')
+const targetKeycloakPreviewFilterOperator = ref<'eq' | 'ne' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte' | 'null' | 'notNull'>('eq')
+const targetKeycloakPreviewFilterValue = ref('')
+const targetKeycloakPreviewFilterError = ref('')
+const sourcePreviewKind = ref<'mongo' | 'keycloak' | ''>('')
+const targetPreviewKind = ref<'mongo' | 'keycloak' | ''>('')
+const sourceUsersPreviewError = ref('')
+const targetUsersPreviewError = ref('')
+const sourceExporting = ref(false)
+const targetExporting = ref(false)
 const sourceFieldPaths = ref<string[]>([])
 const destinationFieldPaths = ref<string[]>([])
 const mappedPreviewDocument = ref<Record<string, any> | null>(null)
 const useSelectedBaseDocument = ref(false)
 const selectedSourceBaseDocumentId = ref('')
+const selectedSourceBaseDocumentKey = ref('')
 const sourceBaseDocument = ref<Record<string, any> | null>(null)
 const insertMode = ref<'one' | 'all'>('one')
 const extractStarredsEnabled = ref(false)
@@ -1182,10 +1683,12 @@ type MappingRule = {
   id: string
   sourceField: string
   targetField: string
+  targetType: 'auto' | 'string' | 'date' | 'integer'
   editTargetName: boolean
   valueFromField: string
   noSource?: boolean
   ruleType: 'direct' | 'concat'
+  generatedBinaryId: boolean
   concatLeftField: string
   concatRightField: string
   concatSeparator: string
@@ -1209,7 +1712,9 @@ const addRuleConcatLeft = ref('')
 const addRuleConcatRight = ref('')
 const addRuleConcatSeparator = ref(' ')
 const addRuleTargetField = ref('')
+const addRuleTargetType = ref<'auto' | 'string' | 'date' | 'integer'>('auto')
 const addRuleNoSource = ref(false)
+const addRuleGenerateId = ref(false)
 const addRuleNoSourceDefaultRaw = ref('')
 const addRuleError = ref('')
 
@@ -1247,8 +1752,8 @@ const availableEngines = [
   {
     name: 'Keycloak',
     type: 'Identity and Access Management',
-    description: 'Realm users migration with configurable field mapping (Keycloak to Keycloak only)',
-    features: ['Users', 'Realms', 'Username mapping'],
+    description: 'Realm users update/migration with configurable field matching',
+    features: ['Users', 'Realms', 'Field matching'],
     available: true,
     selectable: true,
   },
@@ -1278,10 +1783,22 @@ const availableEngines = [
   },
 ]
 
+const keycloakEngineBadgeText = ENABLE_MONGO_TO_KEYCLOAK_MIGRATION
+  ? 'Target Keycloak: source MongoDB ou Keycloak'
+  : 'Keycloak - Keycloak Only'
+
+function isSourceSelectionDisabled(eng: { name: string; selectable: boolean }): boolean {
+  return !eng.selectable
+}
+
+function isTargetSelectionDisabled(eng: { name: string; selectable: boolean }): boolean {
+  return !eng.selectable
+}
+
 // Helper functions
 function getCurrentMigrationStep(): number {
   const tabKey = ui.activeTab.value as string
-  return MIGRATION_FLOW_TABS.findIndex((t) => t === tabKey)
+  return MIGRATION_FLOW_TABS.findIndex((t: string) => t === tabKey)
 }
 
 function getMigrationStepDescription(): string {
@@ -1305,6 +1822,7 @@ function getEngineLogo(engineName: string): string {
   const logoMap: Partial<Record<string, string>> = {
     MongoDB: new URL('./assets/MongoDB.png', import.meta.url).href,
     PostgreSQL: new URL('./assets/postgres.png', import.meta.url).href,
+    Oracle: new URL('./assets/oracle.png', import.meta.url).href,
     Redis: new URL('./assets/redis.png', import.meta.url).href,
   }
   return logoMap[engineName] || ''
@@ -1391,6 +1909,10 @@ async function testSourceConnection() {
     await connection.testKeycloakConnection(connection.keycloakConnectionSource)
     return
   }
+  if (engine.selectedSourceEngine.value === 'PostgreSQL') {
+    await connection.testPostgresConnection(connection.mongoConnectionSource)
+    return
+  }
   await connection.testMongoConnection(connection.mongoConnectionSource)
 }
 
@@ -1399,15 +1921,36 @@ async function testTargetConnection() {
     await connection.testKeycloakConnection(connection.keycloakConnectionTarget)
     return
   }
+  if (engine.selectedTargetEngine.value === 'PostgreSQL') {
+    await connection.testPostgresConnection(connection.mongoConnectionTarget)
+    return
+  }
   await connection.testMongoConnection(connection.mongoConnectionTarget)
 }
 
 async function loadSourceDatabases() {
   sourceDatabasesLoading.value = true
   try {
+    if (engine.selectedSourceEngine.value === 'PostgreSQL') {
+      sourceDatabases.value = await connection.loadPostgresDatabases(connection.mongoConnectionSource)
+      return
+    }
     sourceDatabases.value = await connection.loadMongoDatabases(connection.mongoConnectionSource)
   } finally {
     sourceDatabasesLoading.value = false
+  }
+}
+
+async function loadSourceSchemas() {
+  if (!connection.mongoConnectionSource.database) {
+    return
+  }
+
+  sourceSchemasLoading.value = true
+  try {
+    sourceSchemas.value = await connection.loadPostgresSchemas(connection.mongoConnectionSource)
+  } finally {
+    sourceSchemasLoading.value = false
   }
 }
 
@@ -1418,6 +1961,13 @@ async function loadSourceCollections() {
 
   sourceCollectionsLoading.value = true
   try {
+    if (engine.selectedSourceEngine.value === 'PostgreSQL') {
+      sourceCollections.value = await connection.loadPostgresTables(
+        connection.mongoConnectionSource,
+        sourceSelectedSchema.value || undefined,
+      )
+      return
+    }
     sourceCollections.value = await connection.loadMongoCollections(connection.mongoConnectionSource)
   } finally {
     sourceCollectionsLoading.value = false
@@ -1427,9 +1977,26 @@ async function loadSourceCollections() {
 async function loadTargetDatabases() {
   targetDatabasesLoading.value = true
   try {
+    if (engine.selectedTargetEngine.value === 'PostgreSQL') {
+      targetDatabases.value = await connection.loadPostgresDatabases(connection.mongoConnectionTarget)
+      return
+    }
     targetDatabases.value = await connection.loadMongoDatabases(connection.mongoConnectionTarget)
   } finally {
     targetDatabasesLoading.value = false
+  }
+}
+
+async function loadTargetSchemas() {
+  if (!connection.mongoConnectionTarget.database) {
+    return
+  }
+
+  targetSchemasLoading.value = true
+  try {
+    targetSchemas.value = await connection.loadPostgresSchemas(connection.mongoConnectionTarget)
+  } finally {
+    targetSchemasLoading.value = false
   }
 }
 
@@ -1440,15 +2007,46 @@ async function loadTargetCollections() {
 
   targetCollectionsLoading.value = true
   try {
+    if (engine.selectedTargetEngine.value === 'PostgreSQL') {
+      targetCollections.value = await connection.loadPostgresTables(
+        connection.mongoConnectionTarget,
+        targetSelectedSchema.value || undefined,
+      )
+      return
+    }
     targetCollections.value = await connection.loadMongoCollections(connection.mongoConnectionTarget)
   } finally {
     targetCollectionsLoading.value = false
   }
 }
 
+function onSourceDatabaseChange() {
+  sourceSelectedSchema.value = ''
+  sourceSchemas.value = []
+  sourceCollections.value = []
+  connection.mongoConnectionSource.collection = ''
+}
+
+function onSourceSchemaChange() {
+  sourceCollections.value = []
+  connection.mongoConnectionSource.collection = ''
+}
+
+function onTargetDatabaseChange() {
+  targetSelectedSchema.value = ''
+  targetSchemas.value = []
+  targetCollections.value = []
+  connection.mongoConnectionTarget.collection = ''
+}
+
+function onTargetSchemaChange() {
+  targetCollections.value = []
+  connection.mongoConnectionTarget.collection = ''
+}
+
 const sourceDocumentForMapping = computed<Record<string, any> | null>(() => {
-  if (useSelectedBaseDocument.value && sourceBaseDocument.value) {
-    return sourceBaseDocument.value
+  if (useSelectedBaseDocument.value) {
+    return sourceBaseDocument.value ?? null
   }
   return sourceSamples.value.length > 0 ? sourceSamples.value[0] : null
 })
@@ -1495,6 +2093,51 @@ const normalizeManualValue = (value: string) => {
   return value
 }
 
+const coerceTargetValue = (value: any, targetType: 'auto' | 'string' | 'date' | 'integer') => {
+  if (value === undefined || value === null) return value
+
+  if (targetType === 'auto') {
+    return value
+  }
+
+  if (targetType === 'string') {
+    if (typeof value === 'string') return value
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return String(value)
+      }
+    }
+    return String(value)
+  }
+
+  if (targetType === 'integer') {
+    if (typeof value === 'number') return Math.trunc(value)
+    if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) {
+      return Math.trunc(Number(value.trim()))
+    }
+    return value
+  }
+
+  if (targetType === 'date') {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString()
+    }
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+  }
+
+  return value
+}
+
+const GENERATED_BINARY_ID_PREVIEW = {
+  $binary: {
+    base64: 'CUYYGF4EyjPCh4U8tjZVmw==',
+    subType: '03',
+  },
+}
+
 const extractFieldPaths = (value: any, prefix = ''): string[] => {
   if (value === null || value === undefined) return prefix ? [prefix] : []
   if (Array.isArray(value)) {
@@ -1519,6 +2162,11 @@ const buildMappedDocument = (sourceDocument: Record<string, any>) => {
   for (const mapping of mappingRows.value) {
     if (!mapping.targetField) continue
 
+    if (mapping.generatedBinaryId) {
+      writeValueByPath(mappedDocument, mapping.targetField, GENERATED_BINARY_ID_PREVIEW)
+      continue
+    }
+
     const computedValue = mapping.ruleType === 'concat'
       ? [
           readValueByPath(sourceDocument, mapping.concatLeftField),
@@ -1532,14 +2180,15 @@ const buildMappedDocument = (sourceDocument: Record<string, any>) => {
     const fieldValue = mapping.defaultValueEnabled
       ? normalizeManualValue(mapping.defaultValueRaw)
       : computedValue
+    const typedValue = coerceTargetValue(fieldValue, mapping.targetType)
 
     if (mapping.dbRefEnabled && mapping.dbRefCollection) {
       writeValueByPath(mappedDocument, mapping.targetField, {
-        $id: fieldValue,
+        $id: typedValue,
         $ref: mapping.dbRefCollection,
       })
     } else {
-      writeValueByPath(mappedDocument, mapping.targetField, fieldValue)
+      writeValueByPath(mappedDocument, mapping.targetField, typedValue)
     }
   }
   return mappedDocument
@@ -1582,9 +2231,11 @@ const mappingTableRows = computed(() => {
     isFirst: idx === 0,
     isLast: idx === mappingRows.value.length - 1,
     model: row,
-    typeLabel: 'string -> varchar',
+    typeLabel: row.targetType,
     transform: row.defaultValueEnabled
       ? 'Default Value'
+      : row.generatedBinaryId
+      ? 'Generate _id'
       : row.dbRefEnabled
       ? 'DBRef'
       : row.ruleType === 'concat'
@@ -1596,8 +2247,46 @@ const mappingTableRows = computed(() => {
   }))
 })
 
-const sourceCodeLines = computed(() => JSON.stringify(sourceDocumentForMapping.value || {}, null, 2).split('\n'))
-const mappedCodeLines = computed(() => JSON.stringify(buildMappedDocument(sourceDocumentForMapping.value || {}), null, 2).split('\n'))
+const previewSourceDocument = computed<Record<string, any> | null>(() => {
+  const baseDocument = sourceDocumentForMapping.value
+  if (!baseDocument) {
+    return null
+  }
+
+  if (!extractStarredsEnabled.value) {
+    return baseDocument
+  }
+
+  const starreds = readValueByPath(baseDocument, 'starreds')
+  if (!Array.isArray(starreds) || starreds.length === 0) {
+    return baseDocument
+  }
+
+  const selectedStarred = starreds[0]
+  if (!selectedStarred) {
+    return baseDocument
+  }
+
+  return {
+    ...baseDocument,
+    starreds: selectedStarred,
+  }
+})
+
+const sourceCodeLines = computed(() => JSON.stringify(previewSourceDocument.value || {}, null, 2).split('\n'))
+const mappedCodeLines = computed(() => JSON.stringify(buildMappedDocument(previewSourceDocument.value || {}), null, 2).split('\n'))
+const sourceKeycloakModelFields = computed(() => {
+  if (sourcePreviewKind.value !== 'keycloak' || !sourceDocumentForMapping.value) {
+    return []
+  }
+  return extractFieldPaths(sourceDocumentForMapping.value)
+})
+const targetKeycloakModelFields = computed(() => {
+  if (targetPreviewKind.value !== 'keycloak' || destinationSamples.value.length === 0) {
+    return []
+  }
+  return extractFieldPaths(destinationSamples.value[0])
+})
 const mappedRequiredCount = computed(() => mappingTableRows.value.filter((row) => row.required && row.model.targetField).length)
 const optionalUnmappedCount = computed(() => mappingTableRows.value.filter((row) => !row.required && !row.model.targetField).length)
 const hasDbRefWarning = computed(() => mappingRows.value.some((row) => row.dbRefEnabled && !row.dbRefCollection))
@@ -1611,40 +2300,45 @@ const formatPreviewValue = (value: any) => {
 }
 
 const previewSourceFields = computed(() => {
-  if (!sourceDocumentForMapping.value) return []
+  if (!previewSourceDocument.value) return []
   return sourceFieldPaths.value.map((path) => ({
     path,
-    value: formatPreviewValue(readValueByPath(sourceDocumentForMapping.value, path)),
+    value: formatPreviewValue(readValueByPath(previewSourceDocument.value, path)),
   }))
 })
 
 const previewMappedFields = computed(() => {
-  if (!sourceDocumentForMapping.value) return []
-  return mappingRows.value
-    .filter((mapping) => mapping.targetField)
-    .map((mapping) => {
-      const computedValue = mapping.ruleType === 'concat'
-        ? [
-            readValueByPath(sourceDocumentForMapping.value, mapping.concatLeftField),
-            readValueByPath(sourceDocumentForMapping.value, mapping.concatRightField),
-          ]
-            .filter((item) => item !== null && item !== undefined)
-            .map((item) => String(item))
-            .join(mapping.concatSeparator)
-        : readValueByPath(sourceDocumentForMapping.value, mapping.valueFromField || mapping.sourceField)
+  if (!previewSourceDocument.value) return []
 
-      const value = mapping.defaultValueEnabled
-        ? normalizeManualValue(mapping.defaultValueRaw)
-        : (mapping.dbRefEnabled && mapping.dbRefCollection
-          ? { $id: computedValue, $ref: mapping.dbRefCollection }
-          : computedValue)
+  const previewByPath = new Map<string, { path: string; value: string; mode: 'manual' | 'mapped' }>()
 
-      return {
-        path: mapping.targetField,
-        value: formatPreviewValue(value),
-        mode: mapping.ruleType === 'concat' || mapping.editTargetName ? 'manual' : 'mapped',
-      }
+  for (const mapping of mappingRows.value.filter((item) => item.targetField)) {
+    const computedValue = mapping.ruleType === 'concat'
+      ? [
+          readValueByPath(previewSourceDocument.value, mapping.concatLeftField),
+          readValueByPath(previewSourceDocument.value, mapping.concatRightField),
+        ]
+          .filter((item) => item !== null && item !== undefined)
+          .map((item) => String(item))
+          .join(mapping.concatSeparator)
+      : readValueByPath(previewSourceDocument.value, mapping.valueFromField || mapping.sourceField)
+
+    const value = mapping.defaultValueEnabled
+      ? normalizeManualValue(mapping.defaultValueRaw)
+      : mapping.generatedBinaryId
+      ? GENERATED_BINARY_ID_PREVIEW
+      : (mapping.dbRefEnabled && mapping.dbRefCollection
+        ? { $id: computedValue, $ref: mapping.dbRefCollection }
+        : computedValue)
+
+    previewByPath.set(mapping.targetField, {
+      path: mapping.targetField,
+      value: formatPreviewValue(coerceTargetValue(value, mapping.targetType)),
+      mode: mapping.ruleType === 'concat' || mapping.editTargetName || mapping.generatedBinaryId ? 'manual' : 'mapped',
     })
+  }
+
+  return Array.from(previewByPath.values())
 })
 
 const hasStarredsArray = computed(() => {
@@ -1746,10 +2440,25 @@ const jobNoOutputHint = (job: any) => {
     return ''
   }
 
+  if (result.warning && String(result.warning).trim()) {
+    return String(result.warning)
+  }
+
+  if (Array.isArray(result.warnings) && result.warnings.length > 0) {
+    const firstWarning = String(result.warnings[0] || '').trim()
+    if (firstWarning) {
+      return firstWarning
+    }
+  }
+
   const processed = result.processed ?? 0
   const inserted = result.inserted ?? 0
   const merged = result.merged ?? 0
   const skipped = result.skipped ?? 0
+
+  if (processed === 0) {
+    return 'Nenhum documento foi processado. Verifique se a collection de origem possui dados e filtros aplicados.'
+  }
 
   if (processed > 0 && inserted === 0 && merged === 0) {
     if (skipped > 0) {
@@ -1806,6 +2515,7 @@ const buildMongoConnectionPayload = (config: any) => ({
 const buildMigrationConfig = () => {
   const fieldMapping: Record<string, string> = {}
   const manualMapping: Record<string, any> = {}
+  const orderedRules: Array<Record<string, any>> = []
   const concatRules: Array<{ sourceFields: string[]; targetField: string; separator: string }> = []
   const dbRefRules: Array<{ targetField: string; fromCollection: string; foreignField: string }> = []
   const flattenConfig: Array<{ field: string; mode: 'preserve' | 'explode' }> = []
@@ -1818,23 +2528,50 @@ const buildMigrationConfig = () => {
     }
 
     if (row.defaultValueEnabled) {
-      manualMapping[targetField] = normalizeManualValue(row.defaultValueRaw)
+      const manualValue = normalizeManualValue(row.defaultValueRaw)
+      manualMapping[targetField] = manualValue
+      orderedRules.push({
+        ruleType: 'manual',
+        targetField,
+        targetType: row.targetType,
+        manualValue,
+      })
+      continue
+    }
+
+    if (row.generatedBinaryId) {
+      orderedRules.push({
+        ruleType: 'generated_id',
+        targetField,
+        targetType: row.targetType,
+      })
       continue
     }
 
     if (row.ruleType === 'concat') {
+      const orderedConcatRule: Record<string, any> = {
+        ruleType: 'concat',
+        targetField,
+        targetType: row.targetType,
+        sourceFields: [row.concatLeftField, row.concatRightField],
+        separator: row.concatSeparator,
+      }
+
       concatRules.push({
         sourceFields: [row.concatLeftField, row.concatRightField],
         targetField,
         separator: row.concatSeparator,
       })
       if (row.dbRefEnabled && row.dbRefCollection) {
+        orderedConcatRule.dbRefCollection = row.dbRefCollection
+        orderedConcatRule.dbRefForeignField = row.dbRefForeignField || '_id'
         dbRefRules.push({
           targetField,
           fromCollection: row.dbRefCollection,
           foreignField: row.dbRefForeignField || '_id',
         })
       }
+      orderedRules.push(orderedConcatRule)
       continue
     }
 
@@ -1843,19 +2580,29 @@ const buildMigrationConfig = () => {
       continue
     }
 
+    const orderedDirectRule: Record<string, any> = {
+      ruleType: 'direct',
+      targetField,
+      targetType: row.targetType,
+      sourceField: valueFromField,
+    }
+
     fieldMapping[valueFromField] = targetField
     if (row.dbRefEnabled && row.dbRefCollection) {
+      orderedDirectRule.dbRefCollection = row.dbRefCollection
+      orderedDirectRule.dbRefForeignField = row.dbRefForeignField || '_id'
       dbRefRules.push({
         targetField,
         fromCollection: row.dbRefCollection,
         foreignField: row.dbRefForeignField || '_id',
       })
     }
+    orderedRules.push(orderedDirectRule)
   }
 
   if (extractStarredsEnabled.value && hasStarredsArray.value) {
     flattenConfig.push({ field: 'starreds', mode: 'explode' })
-    filterRules.push({ field: 'starreds.starred', op: 'eq', value: true })
+    filterRules.push({ field: 'starreds', op: 'truthy', value: true })
     if (manualMapping._class === undefined) {
       manualMapping._class = 'Favorites'
     }
@@ -1888,6 +2635,7 @@ const buildMigrationConfig = () => {
     sourceBaseDocumentId: useSelectedBaseDocument.value ? (selectedSourceBaseDocumentId.value || null) : null,
     fieldMapping,
     manualMapping,
+    orderedRules,
     concatRules,
     dbRefRules,
     mergeByField: mergeDocumentsEnabled.value ? mergeByField.value.trim() : null,
@@ -1918,12 +2666,41 @@ const buildKeycloakMigrationConfig = () => {
   }
 }
 
+const buildMongoToKeycloakMigrationConfig = () => {
+  const fieldMapping: Record<string, string> = {}
+  for (const row of mappingRows.value) {
+    const sourceField = (row.valueFromField || row.sourceField || '').trim()
+    const targetField = (row.targetField || '').trim()
+    if (!sourceField || !targetField || row.ruleType !== 'direct' || row.noSource) {
+      continue
+    }
+    fieldMapping[sourceField] = targetField
+  }
+
+  const sourcePayload = buildMongoConnectionPayload(connection.mongoConnectionSource)
+  return {
+    migrationType: 'mongo_to_keycloak',
+    migrationName: `Update Keycloak ${new Date().toISOString()}`,
+    source: {
+      connectionString: sourcePayload.connectionString,
+      database: connection.mongoConnectionSource.database,
+      collection: connection.mongoConnectionSource.collection,
+      authSource: sourcePayload.authSource,
+    },
+    target: buildKeycloakPayload(connection.keycloakConnectionTarget),
+    sourceMatchField: migration.keycloakUsernameSourceField.value || 'email',
+    targetMatchField: migration.keycloakTargetMatchField.value || 'username',
+    fieldMapping,
+  }
+}
+
 const syncMappingsFromSamples = () => {
   sourceFieldPaths.value = sourceDocumentForMapping.value ? extractFieldPaths(sourceDocumentForMapping.value) : []
   destinationFieldPaths.value = destinationSamples.value.length > 0 ? extractFieldPaths(destinationSamples.value[0]) : []
   const destinationHasSchema = destinationFieldPaths.value.length > 0
 
   const customRules = mappingRows.value.filter((item) => item.isCustom)
+  const hasGeneratedIdRule = customRules.some((item) => item.generatedBinaryId && item.targetField.trim() === '_id')
   const nonCustomRules = mappingRows.value.filter((item) => !item.isCustom)
   const currentMappings = new Map(nonCustomRules.map((item) => [item.sourceField, item.targetField]))
   const currentEditTargetFlags = new Map(nonCustomRules.map((item) => [item.sourceField, item.editTargetName]))
@@ -1938,7 +2715,10 @@ const syncMappingsFromSamples = () => {
     return {
       id: currentIds.get(field) ?? nextRuleId(),
       sourceField: field,
-      targetField: currentMappings.get(field) ?? (destinationHasSchema ? (destinationFieldPaths.value.includes(field) ? field : '') : field),
+      targetField: hasGeneratedIdRule && field === '_id'
+        ? ''
+        : (currentMappings.get(field) ?? (destinationHasSchema ? (destinationFieldPaths.value.includes(field) ? field : '') : field)),
+      targetType: 'auto' as const,
       editTargetName: currentEditTargetFlags.get(field) ?? false,
       valueFromField: field,
       noSource: false,
@@ -1951,6 +2731,7 @@ const syncMappingsFromSamples = () => {
       dbRefForeignField: currentDbRefForeignField.get(field) ?? '_id',
       defaultValueEnabled: currentDefaultEnabled.get(field) ?? false,
       defaultValueRaw: currentDefaultRaw.get(field) ?? '',
+      generatedBinaryId: false,
       isCustom: false,
     }
   })
@@ -1975,7 +2756,9 @@ const openAddRuleModal = () => {
   addRuleConcatRight.value = sourceFieldPaths.value[1] || sourceFieldPaths.value[0] || ''
   addRuleConcatSeparator.value = ' '
   addRuleTargetField.value = ''
+  addRuleTargetType.value = 'auto'
   addRuleNoSource.value = false
+  addRuleGenerateId.value = false
   addRuleNoSourceDefaultRaw.value = ''
 }
 
@@ -1984,8 +2767,113 @@ const closeAddRuleModal = () => {
   addRuleError.value = ''
 }
 
+const onAddRuleGenerateIdChange = () => {
+  if (addRuleGenerateId.value) {
+    addRuleTargetField.value = '_id'
+    addRuleNoSource.value = false
+    addRuleNoSourceDefaultRaw.value = ''
+    return
+  }
+
+  if (addRuleTargetField.value === '_id') {
+    addRuleTargetField.value = ''
+  }
+}
+
+const buildNotificationPresetValue = () => ({
+  app: {
+    enabled: '{{notification.acceptance}}',
+    acceptedAt: '{{notification.date|date}}',
+  },
+  whatsapp: {
+    enabled: false,
+    acceptedAt: null,
+  },
+  sms: {
+    enabled: false,
+    acceptedAt: null,
+  },
+  email: {
+    enabled: false,
+    acceptedAt: null,
+  },
+})
+
+const applyNotificationPreset = () => {
+  const preferencesValue = buildNotificationPresetValue()
+  mappingRows.value = mappingRows.value.filter((row) => row.targetField.trim() !== 'preferences' && row.targetField.trim() !== '_class')
+  mappingRows.value.push({
+    id: nextRuleId(),
+    sourceField: '(novo)',
+    targetField: 'preferences',
+    targetType: 'auto',
+    editTargetName: true,
+    valueFromField: '',
+    noSource: true,
+    ruleType: 'direct',
+    generatedBinaryId: false,
+    concatLeftField: '',
+    concatRightField: '',
+    concatSeparator: ' ',
+    dbRefEnabled: false,
+    dbRefCollection: '',
+    dbRefForeignField: '_id',
+    defaultValueEnabled: true,
+    defaultValueRaw: JSON.stringify(preferencesValue, null, 2),
+    isCustom: true,
+  })
+  mappingRows.value.push({
+    id: nextRuleId(),
+    sourceField: '(novo)',
+    targetField: '_class',
+    targetType: 'string',
+    editTargetName: true,
+    valueFromField: '',
+    noSource: true,
+    ruleType: 'direct',
+    generatedBinaryId: false,
+    concatLeftField: '',
+    concatRightField: '',
+    concatSeparator: ' ',
+    dbRefEnabled: false,
+    dbRefCollection: '',
+    dbRefForeignField: '_id',
+    defaultValueEnabled: true,
+    defaultValueRaw: 'Notification',
+    isCustom: true,
+  })
+  closeAddRuleModal()
+}
+
 const submitAddRule = () => {
   addRuleError.value = ''
+
+  if (addRuleMode.value === 'new' && addRuleGenerateId.value) {
+    mappingRows.value = mappingRows.value.filter((row) => row.targetField.trim() !== '_id')
+    mappingRows.value.push({
+      id: nextRuleId(),
+      sourceField: '(gerado)',
+      targetField: '_id',
+      targetType: 'auto',
+      editTargetName: false,
+      valueFromField: '',
+      noSource: true,
+      ruleType: 'direct',
+      generatedBinaryId: true,
+      concatLeftField: '',
+      concatRightField: '',
+      concatSeparator: ' ',
+      dbRefEnabled: false,
+      dbRefCollection: '',
+      dbRefForeignField: '_id',
+      defaultValueEnabled: false,
+      defaultValueRaw: '',
+      isCustom: true,
+    })
+    closeAddRuleModal()
+    return
+  }
+
   const targetField = addRuleTargetField.value.trim()
   if (!targetField) {
     addRuleError.value = 'Informe o nome do campo no target.'
@@ -1998,10 +2886,12 @@ const submitAddRule = () => {
       id: nextRuleId(),
       sourceField,
       targetField,
+      targetType: addRuleTargetType.value,
       editTargetName: true,
       valueFromField: addRuleNoSource.value ? '' : addRuleSourceField.value,
       noSource: addRuleNoSource.value,
       ruleType: 'direct',
+      generatedBinaryId: false,
       concatLeftField: '',
       concatRightField: '',
       concatSeparator: ' ',
@@ -2020,10 +2910,12 @@ const submitAddRule = () => {
     id: nextRuleId(),
     sourceField: `${addRuleConcatLeft.value} + ${addRuleConcatRight.value}`,
     targetField,
+    targetType: addRuleTargetType.value,
     editTargetName: true,
     valueFromField: addRuleConcatLeft.value,
     noSource: false,
     ruleType: 'concat',
+    generatedBinaryId: false,
     concatLeftField: addRuleConcatLeft.value,
     concatRightField: addRuleConcatRight.value,
     concatSeparator: addRuleConcatSeparator.value,
@@ -2116,6 +3008,11 @@ const saveDefaultValueRule = () => {
 }
 
 const getDocumentId = (item: Record<string, any>): string => {
+  const keycloakId = item?.id
+  if (typeof keycloakId === 'string' && keycloakId.trim()) {
+    return keycloakId.trim()
+  }
+
   const rawId = item?._id
   if (!rawId) return ''
   if (typeof rawId === 'string') return rawId
@@ -2123,22 +3020,339 @@ const getDocumentId = (item: Record<string, any>): string => {
   return ''
 }
 
-const selectSourceBaseDocument = (item: Record<string, any>) => {
+const getDocumentSelectionKey = (item: Record<string, any>, index: number): string => {
   const id = getDocumentId(item)
+  if (id) {
+    return `id:${id}`
+  }
+  return `idx:${index}`
+}
+
+const selectSourceBaseDocument = (item: Record<string, any>, index: number) => {
+  const id = getDocumentId(item)
+  selectedSourceBaseDocumentKey.value = getDocumentSelectionKey(item, index)
   selectedSourceBaseDocumentId.value = id
-  sourceBaseDocument.value = id ? item : null
+  sourceBaseDocument.value = item
   syncMappingsFromSamples()
+}
+
+const restoreSelectedBaseDocument = (
+  useSelectedBase: boolean,
+  selectedId: string,
+  selectedKey: string,
+  fallbackDocument: Record<string, any> | null,
+) => {
+  if (!useSelectedBase) {
+    return
+  }
+
+  useSelectedBaseDocument.value = true
+  if (!selectedId) {
+    sourceBaseDocument.value = null
+    selectedSourceBaseDocumentId.value = ''
+    selectedSourceBaseDocumentKey.value = ''
+    sourceUsersPreviewError.value = 'Documento modelo sem identificador estavel. Selecione novamente um documento base.'
+    return
+  }
+
+  const matchedIndex = sourceSamples.value.findIndex((item) => getDocumentId(item) === selectedId)
+
+  if (matchedIndex >= 0 && sourceSamples.value[matchedIndex]) {
+    selectSourceBaseDocument(sourceSamples.value[matchedIndex], matchedIndex)
+    return
+  }
+
+  if (fallbackDocument) {
+    sourceBaseDocument.value = fallbackDocument
+    selectedSourceBaseDocumentId.value = selectedId
+    selectedSourceBaseDocumentKey.value = selectedKey
+    return
+  }
+
+  sourceBaseDocument.value = null
+  selectedSourceBaseDocumentId.value = ''
+  selectedSourceBaseDocumentKey.value = ''
+  sourceUsersPreviewError.value = 'Documento modelo selecionado nao foi encontrado nos dados atuais. Selecione outro documento base.'
+}
+
+const onSourcePreviewLimitChange = async () => {
+  if (
+    sourcePreviewKind.value === 'mongo'
+    && sourceSamples.value.length > 0
+    && connection.mongoConnectionSource.collection
+    && !sourceSamplesLoading.value
+  ) {
+    await viewSourceSample()
+  }
+}
+
+const onSourceKeycloakPreviewLimitChange = async () => {
+  if (
+    sourcePreviewKind.value === 'keycloak'
+    && sourceSamples.value.length > 0
+    && engine.selectedSourceEngine.value === 'Keycloak'
+    && !sourceSamplesLoading.value
+  ) {
+    await viewSourceKeycloakUsers()
+  }
+}
+
+const onTargetKeycloakPreviewLimitChange = async () => {
+  if (
+    targetPreviewKind.value === 'keycloak'
+    && destinationSamples.value.length > 0
+    && engine.selectedTargetEngine.value === 'Keycloak'
+    && !destinationSamplesLoading.value
+  ) {
+    await viewTargetKeycloakUsers()
+  }
+}
+
+const parseFilterValue = (value: string): any => {
+  const trimmed = value.trim()
+  if (trimmed === '') return ''
+  if (trimmed === 'true') return true
+  if (trimmed === 'false') return false
+  if (trimmed === 'null') return null
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed)
+  return trimmed
+}
+
+const isNullKeycloakOperator = (operator: string): boolean => {
+  return operator === 'null' || operator === 'notNull'
+}
+
+const buildSourcePreviewFilterPayload = () => {
+  sourcePreviewFilterError.value = ''
+
+  if (sourcePreviewFilterMode.value === 'none') {
+    return {}
+  }
+
+  if (sourcePreviewFilterMode.value === 'field') {
+    const field = sourcePreviewFilterField.value.trim()
+    if (!field) {
+      sourcePreviewFilterError.value = 'Informe o nome do campo para filtrar por existencia.'
+      throw new Error(sourcePreviewFilterError.value)
+    }
+    return {
+      filterField: field,
+      filterOperator: 'exists',
+    }
+  }
+
+  if (sourcePreviewFilterMode.value === 'fieldValue') {
+    const field = sourcePreviewFilterField.value.trim()
+    if (!field) {
+      sourcePreviewFilterError.value = 'Informe o campo para filtrar por valor.'
+      throw new Error(sourcePreviewFilterError.value)
+    }
+
+    return {
+      filterField: field,
+      filterOperator: sourcePreviewFilterOperator.value,
+      filterValue: parseFilterValue(sourcePreviewFilterValue.value),
+    }
+  }
+
+  if (sourcePreviewFilterMode.value === 'query') {
+    try {
+      const parsed = JSON.parse(sourcePreviewMongoQuery.value)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        sourcePreviewFilterError.value = 'A query MongoDB deve ser um objeto JSON valido.'
+        throw new Error(sourcePreviewFilterError.value)
+      }
+      return {
+        mongoQuery: parsed,
+      }
+    } catch {
+      sourcePreviewFilterError.value = sourcePreviewFilterError.value || 'Query MongoDB invalida. Verifique o JSON informado.'
+      throw new Error(sourcePreviewFilterError.value)
+    }
+  }
+
+  return {}
+}
+
+const buildKeycloakPreviewFilterPayload = (scope: 'source' | 'target') => {
+  const isSource = scope === 'source'
+  const filterMode = isSource
+    ? sourceKeycloakPreviewFilterMode.value
+    : targetKeycloakPreviewFilterMode.value
+  const filterField = isSource
+    ? sourceKeycloakPreviewFilterField.value.trim()
+    : targetKeycloakPreviewFilterField.value.trim()
+  const filterOperator = isSource
+    ? sourceKeycloakPreviewFilterOperator.value
+    : targetKeycloakPreviewFilterOperator.value
+  const filterValue = isSource
+    ? sourceKeycloakPreviewFilterValue.value
+    : targetKeycloakPreviewFilterValue.value
+
+  if (isSource) {
+    sourceKeycloakPreviewFilterError.value = ''
+  } else {
+    targetKeycloakPreviewFilterError.value = ''
+  }
+
+  if (filterMode === 'none') {
+    return { filterMode }
+  }
+
+  if (!filterField) {
+    const errorMessage = 'Informe a chave para aplicar o filtro no Keycloak.'
+    if (isSource) {
+      sourceKeycloakPreviewFilterError.value = errorMessage
+    } else {
+      targetKeycloakPreviewFilterError.value = errorMessage
+    }
+    throw new Error(errorMessage)
+  }
+
+  if (filterMode === 'field') {
+    return {
+      filterMode,
+      filterField,
+    }
+  }
+
+  if (isNullKeycloakOperator(filterOperator)) {
+    return {
+      filterMode,
+      filterField,
+      filterOperator,
+    }
+  }
+
+  if (!filterValue.trim()) {
+    const errorMessage = 'Informe um valor para o operador selecionado.'
+    if (isSource) {
+      sourceKeycloakPreviewFilterError.value = errorMessage
+    } else {
+      targetKeycloakPreviewFilterError.value = errorMessage
+    }
+    throw new Error(errorMessage)
+  }
+
+  return {
+    filterMode,
+    filterField,
+    filterOperator,
+    filterValue: parseFilterValue(filterValue),
+  }
+}
+
+const triggerJsonDownload = (filename: string, payload: unknown) => {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+const exportKeycloakUsers = async (scope: 'source' | 'target') => {
+  const isSource = scope === 'source'
+  const selectedEngine = isSource
+    ? engine.selectedSourceEngine.value
+    : engine.selectedTargetEngine.value
+
+  if (selectedEngine !== 'Keycloak') {
+    return
+  }
+
+  const connectionConfig = isSource
+    ? connection.keycloakConnectionSource
+    : connection.keycloakConnectionTarget
+  const batchSize = 100
+  const users: Record<string, any>[] = []
+
+  if (isSource) {
+    sourceExporting.value = true
+    sourceUsersPreviewError.value = ''
+    sourceKeycloakPreviewFilterError.value = ''
+  } else {
+    targetExporting.value = true
+    targetUsersPreviewError.value = ''
+    targetKeycloakPreviewFilterError.value = ''
+  }
+
+  try {
+    const filterPayload = buildKeycloakPreviewFilterPayload(scope)
+    let first = 0
+    let hasMore = true
+    let guard = 0
+
+    while (hasMore && guard < 10000) {
+      const response = await apiClient.listKeycloakUsers({
+        ...buildKeycloakPayload(connectionConfig),
+        first,
+        limit: batchSize,
+        ...filterPayload,
+      })
+
+      const items = response.data.items || []
+      users.push(...items)
+      hasMore = Boolean(response.data.hasMore)
+      first = typeof response.data.nextFirst === 'number' ? response.data.nextFirst : first + batchSize
+      guard += 1
+    }
+
+    if (users.length === 0) {
+      const emptyMessage = 'Nenhum registro encontrado para exportar com os filtros atuais.'
+      if (isSource) {
+        sourceUsersPreviewError.value = emptyMessage
+      } else {
+        targetUsersPreviewError.value = emptyMessage
+      }
+      return
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const side = isSource ? 'source' : 'target'
+    const realm = (connectionConfig.realm || 'realm').replace(/[^a-zA-Z0-9-_]/g, '_')
+    const filename = `keycloak-${side}-${realm}-${timestamp}.json`
+
+    triggerJsonDownload(filename, users)
+  } catch (error: any) {
+    const message = error?.response?.data?.detail || error?.message || 'Falha ao exportar usuarios do Keycloak.'
+    if (isSource) {
+      sourceUsersPreviewError.value = message
+    } else {
+      targetUsersPreviewError.value = message
+    }
+  } finally {
+    if (isSource) {
+      sourceExporting.value = false
+    } else {
+      targetExporting.value = false
+    }
+  }
 }
 
 const viewSourceSample = async () => {
   if (engine.selectedSourceEngine.value !== 'MongoDB') {
     return
   }
+  sourceUsersPreviewError.value = ''
+  sourcePreviewFilterError.value = ''
+  sourcePreviewKind.value = 'mongo'
   sourceSamplesLoading.value = true
+  const shouldRestoreSelectedBase = useSelectedBaseDocument.value
+  const previousSelectedBaseId = selectedSourceBaseDocumentId.value
+  const previousSelectedBaseKey = selectedSourceBaseDocumentKey.value
+  const previousSelectedBaseDocument = sourceBaseDocument.value
   sourceSamples.value = []
-  sourceBaseDocument.value = null
-  selectedSourceBaseDocumentId.value = ''
+  if (!shouldRestoreSelectedBase) {
+    sourceBaseDocument.value = null
+    selectedSourceBaseDocumentKey.value = ''
+    selectedSourceBaseDocumentId.value = ''
+  }
   try {
+    const filterPayload = buildSourcePreviewFilterPayload()
     const response = await apiClient.loadMongoSamples({
       connectionString: connection.mongoConnectionSource.connectionString,
       database: connection.mongoConnectionSource.database,
@@ -2147,13 +3361,23 @@ const viewSourceSample = async () => {
       username: connection.mongoConnectionSource.username,
       password: connection.mongoConnectionSource.password,
       authSource: connection.mongoConnectionSource.authSource,
-      limit: 10,
+      limit: sourcePreviewLimit.value,
+      ...filterPayload,
     })
     sourceSamples.value = response.data.items || response.data.samples || []
+    restoreSelectedBaseDocument(
+      shouldRestoreSelectedBase,
+      previousSelectedBaseId,
+      previousSelectedBaseKey,
+      previousSelectedBaseDocument,
+    )
     syncMappingsFromSamples()
     if (sourceDocumentForMapping.value) {
       mappedPreviewDocument.value = buildMappedDocument(sourceDocumentForMapping.value)
     }
+  } catch (error: any) {
+    sourcePreviewFilterError.value =
+      error?.response?.data?.detail || error?.message || 'Falha ao carregar documentos com o filtro informado.'
   } finally {
     sourceSamplesLoading.value = false
   }
@@ -2163,6 +3387,8 @@ const viewDestinationSample = async () => {
   if (engine.selectedTargetEngine.value !== 'MongoDB') {
     return
   }
+  targetUsersPreviewError.value = ''
+  targetPreviewKind.value = 'mongo'
   destinationSamplesLoading.value = true
   destinationSamples.value = []
   try {
@@ -2186,6 +3412,169 @@ const viewDestinationSample = async () => {
   }
 }
 
+const viewSourceKeycloakUsers = async () => {
+  if (engine.selectedSourceEngine.value !== 'Keycloak') {
+    return
+  }
+
+  sourceSamplesLoading.value = true
+  sourceUsersPreviewError.value = ''
+  sourceKeycloakPreviewFilterError.value = ''
+  sourcePreviewKind.value = 'keycloak'
+  const shouldRestoreSelectedBase = useSelectedBaseDocument.value
+  const previousSelectedBaseId = selectedSourceBaseDocumentId.value
+  const previousSelectedBaseKey = selectedSourceBaseDocumentKey.value
+  const previousSelectedBaseDocument = sourceBaseDocument.value
+  sourceSamples.value = []
+  if (!shouldRestoreSelectedBase) {
+    sourceBaseDocument.value = null
+    selectedSourceBaseDocumentKey.value = ''
+    selectedSourceBaseDocumentId.value = ''
+  }
+
+  try {
+    const filterPayload = buildKeycloakPreviewFilterPayload('source')
+    const response = await apiClient.listKeycloakUsers({
+      ...buildKeycloakPayload(connection.keycloakConnectionSource),
+      limit: sourceKeycloakPreviewLimit.value,
+      ...filterPayload,
+    })
+    sourceSamples.value = response.data.items || []
+    restoreSelectedBaseDocument(
+      shouldRestoreSelectedBase,
+      previousSelectedBaseId,
+      previousSelectedBaseKey,
+      previousSelectedBaseDocument,
+    )
+    syncMappingsFromSamples()
+    if (sourceDocumentForMapping.value) {
+      mappedPreviewDocument.value = buildMappedDocument(sourceDocumentForMapping.value)
+    }
+  } catch (error: any) {
+    sourceUsersPreviewError.value =
+      error?.response?.data?.detail || error?.message || 'Falha ao listar usuarios no Keycloak de origem.'
+  } finally {
+    sourceSamplesLoading.value = false
+  }
+}
+
+const viewTargetKeycloakUsers = async () => {
+  if (engine.selectedTargetEngine.value !== 'Keycloak') {
+    return
+  }
+
+  destinationSamplesLoading.value = true
+  targetUsersPreviewError.value = ''
+  targetKeycloakPreviewFilterError.value = ''
+  targetPreviewKind.value = 'keycloak'
+  destinationSamples.value = []
+
+  try {
+    const filterPayload = buildKeycloakPreviewFilterPayload('target')
+    const response = await apiClient.listKeycloakUsers({
+      ...buildKeycloakPayload(connection.keycloakConnectionTarget),
+      limit: targetKeycloakPreviewLimit.value,
+      ...filterPayload,
+    })
+    destinationSamples.value = response.data.items || []
+    syncMappingsFromSamples()
+    if (sourceDocumentForMapping.value) {
+      mappedPreviewDocument.value = buildMappedDocument(sourceDocumentForMapping.value)
+    }
+  } catch (error: any) {
+    targetUsersPreviewError.value =
+      error?.response?.data?.detail || error?.message || 'Falha ao listar usuarios no Keycloak de destino.'
+  } finally {
+    destinationSamplesLoading.value = false
+  }
+}
+
+const resetSamplesAndMappingState = () => {
+  sourceSamples.value = []
+  destinationSamples.value = []
+  sourcePreviewKind.value = ''
+  targetPreviewKind.value = ''
+  sourceUsersPreviewError.value = ''
+  targetUsersPreviewError.value = ''
+  sourceBaseDocument.value = null
+  selectedSourceBaseDocumentKey.value = ''
+  selectedSourceBaseDocumentId.value = ''
+  useSelectedBaseDocument.value = false
+  sourceFieldPaths.value = []
+  destinationFieldPaths.value = []
+  mappingRows.value = []
+  mappedPreviewDocument.value = null
+}
+
+const loadKeycloakSamplesForMapping = async () => {
+  if (engine.selectedSourceEngine.value !== 'Keycloak' || engine.selectedTargetEngine.value !== 'Keycloak') {
+    return
+  }
+
+  const shouldRestoreSelectedBase = useSelectedBaseDocument.value
+  const previousSelectedBaseId = selectedSourceBaseDocumentId.value
+  const previousSelectedBaseKey = selectedSourceBaseDocumentKey.value
+  const previousSelectedBaseDocument = sourceBaseDocument.value
+
+  resetSamplesAndMappingState()
+  sourceSamplesLoading.value = true
+  destinationSamplesLoading.value = true
+
+  try {
+    const [sourceResponse, targetResponse] = await Promise.all([
+      apiClient.listKeycloakUsers({
+        ...buildKeycloakPayload(connection.keycloakConnectionSource),
+        limit: 10,
+      }),
+      apiClient.listKeycloakUsers({
+        ...buildKeycloakPayload(connection.keycloakConnectionTarget),
+        limit: 10,
+      }),
+    ])
+
+    sourceSamples.value = sourceResponse.data.items || []
+    destinationSamples.value = targetResponse.data.items || []
+    sourcePreviewKind.value = 'keycloak'
+    targetPreviewKind.value = 'keycloak'
+    restoreSelectedBaseDocument(
+      shouldRestoreSelectedBase,
+      previousSelectedBaseId,
+      previousSelectedBaseKey,
+      previousSelectedBaseDocument,
+    )
+    syncMappingsFromSamples()
+
+    if (sourceDocumentForMapping.value) {
+      mappedPreviewDocument.value = buildMappedDocument(sourceDocumentForMapping.value)
+    }
+
+    if (!sourceFieldPaths.value.includes(migration.keycloakUsernameSourceField.value)) {
+      migration.keycloakUsernameSourceField.value = sourceFieldPaths.value.includes('username')
+        ? 'username'
+        : (sourceFieldPaths.value[0] || 'username')
+    }
+
+    if (!destinationFieldPaths.value.includes(migration.keycloakTargetMatchField.value)) {
+      migration.keycloakTargetMatchField.value = destinationFieldPaths.value.includes('username')
+        ? 'username'
+        : (destinationFieldPaths.value[0] || 'username')
+    }
+  } finally {
+    sourceSamplesLoading.value = false
+    destinationSamplesLoading.value = false
+  }
+}
+
+watch(useSelectedBaseDocument, (enabled) => {
+  if (!enabled) {
+    return
+  }
+
+  if (!sourceBaseDocument.value && sourceSamples.value.length > 0) {
+    selectSourceBaseDocument(sourceSamples.value[0], 0)
+  }
+})
+
 const mapData = () => {
   if (!sourceDocumentForMapping.value) {
     mappedPreviewDocument.value = null
@@ -2202,27 +3591,45 @@ const goToJobsFromPreview = async () => {
 
 const createInsertJob = async () => {
   createJobError.value = ''
-  if (engine.selectedSourceEngine.value === 'Keycloak' && engine.selectedTargetEngine.value === 'Keycloak') {
-    if (!connection.keycloakConnectionSource.connected || !connection.keycloakConnectionTarget.connected) {
-      createJobError.value = 'Conecte e valide source e target Keycloak antes de executar.'
+  if (engine.selectedTargetEngine.value === 'Keycloak') {
+    if (!ENABLE_MONGO_TO_KEYCLOAK_MIGRATION && engine.selectedSourceEngine.value === 'MongoDB') {
+      createJobError.value = 'MongoDB -> Keycloak esta temporariamente desativado por configuracao.'
+      return
+    }
+    if (!connection.keycloakConnectionTarget.connected) {
+      createJobError.value = 'Conecte e valide o target Keycloak antes de executar.'
+      return
+    }
+    if (engine.selectedSourceEngine.value === 'Keycloak' && !connection.keycloakConnectionSource.connected) {
+      createJobError.value = 'Conecte e valide o source Keycloak antes de executar.'
+      return
+    }
+    if (engine.selectedSourceEngine.value === 'MongoDB' && (!connection.mongoConnectionSource.database || !connection.mongoConnectionSource.collection)) {
+      createJobError.value = 'Selecione database e collection do source MongoDB.'
       return
     }
     if (!migration.keycloakUsernameSourceField.value.trim()) {
-      createJobError.value = 'Selecione o campo de origem para username.'
+      createJobError.value = 'Selecione o Source campo chave.'
+      return
+    }
+    if (!migration.keycloakTargetMatchField.value.trim()) {
+      createJobError.value = 'Selecione o Target campo chave.'
       return
     }
 
     createJobLoading.value = true
     try {
       await apiClient.executeKeycloakMigration({
-        config: buildKeycloakMigrationConfig(),
+        config: engine.selectedSourceEngine.value === 'Keycloak'
+          ? buildKeycloakMigrationConfig()
+          : buildMongoToKeycloakMigrationConfig(),
         maxDocuments: insertMode.value === 'one' ? 1 : null,
       })
       await jobs.loadJobs(true)
       ui.setActiveTab('jobs')
       jobs.startJobsPolling()
     } catch (error: any) {
-      createJobError.value = error?.response?.data?.detail || error?.message || 'Falha ao criar job de migracao Keycloak.'
+      createJobError.value = error?.response?.data?.detail || error?.message || 'Falha ao criar job de update no Keycloak.'
     } finally {
       createJobLoading.value = false
     }
@@ -2267,11 +3674,50 @@ const createInsertJob = async () => {
 const goToMappingFromConnections = async () => {
   mappingNavigationLoading.value = true
   try {
-    if (engine.selectedSourceEngine.value === 'MongoDB' && sourceSamples.value.length === 0) {
-      await viewSourceSample()
+    if (
+      engine.selectedSourceEngine.value !== 'Keycloak'
+      && sourceCollections.value.length === 0
+      && sourceConnected.value
+      && connection.mongoConnectionSource.database
+    ) {
+      await loadSourceCollections()
     }
-    if (engine.selectedTargetEngine.value === 'MongoDB' && destinationSamples.value.length === 0) {
-      await viewDestinationSample()
+
+    if (
+      engine.selectedTargetEngine.value !== 'Keycloak'
+      && targetCollections.value.length === 0
+      && targetConnected.value
+      && connection.mongoConnectionTarget.database
+    ) {
+      await loadTargetCollections()
+    }
+
+    if (engine.selectedSourceEngine.value === 'Keycloak' && engine.selectedTargetEngine.value === 'Keycloak') {
+      await loadKeycloakSamplesForMapping()
+    } else if (engine.selectedSourceEngine.value === 'MongoDB' && engine.selectedTargetEngine.value === 'Keycloak') {
+      if (sourceSamples.value.length === 0) {
+        await viewSourceSample()
+      }
+      if (destinationSamples.value.length === 0) {
+        await viewTargetKeycloakUsers()
+      }
+      if (!sourceFieldPaths.value.includes(migration.keycloakUsernameSourceField.value)) {
+        migration.keycloakUsernameSourceField.value = sourceFieldPaths.value.includes('email')
+          ? 'email'
+          : (sourceFieldPaths.value[0] || 'email')
+      }
+      if (!destinationFieldPaths.value.includes(migration.keycloakTargetMatchField.value)) {
+        migration.keycloakTargetMatchField.value = destinationFieldPaths.value.includes('username')
+          ? 'username'
+          : (destinationFieldPaths.value[0] || 'username')
+      }
+    } else {
+      if (engine.selectedSourceEngine.value === 'MongoDB' && sourceSamples.value.length === 0) {
+        await viewSourceSample()
+      }
+      if (engine.selectedTargetEngine.value === 'MongoDB' && destinationSamples.value.length === 0) {
+        await viewDestinationSample()
+      }
     }
   } catch (error) {
     console.warn('Falha ao precarregar samples para mapping, prosseguindo mesmo assim.', error)
@@ -3147,6 +4593,7 @@ body {
 }
 
 .form-select {
+  box-sizing: border-box;
   width: 100%;
   padding: 10px;
   border: 1px solid var(--color-border, #334155);
@@ -3162,6 +4609,109 @@ body {
   outline: none;
   border-color: var(--color-info, #06b6d4);
   box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+}
+
+.form-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 8px;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  background-color: var(--color-bg-primary, #0f172a);
+  color: var(--color-text-primary, #e2e8f0);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-info, #06b6d4);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+}
+
+.form-input-mono {
+  width: 95%;
+  min-height: 90px;
+  resize: vertical;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+.preview-filter-controls {
+  margin-top: 10px;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.preview-filter-controls-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 320px);
+  gap: 10px;
+}
+
+.preview-filter-controls-grid-with-action {
+  grid-template-columns: minmax(0, 150px) minmax(0, 320px) minmax(160px, auto);
+  align-items: end;
+}
+
+.preview-export-field {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.preview-export-button {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.preview-limit-field,
+.preview-type-field,
+.preview-inline-field,
+.preview-query-field {
+  margin-top: 0;
+}
+
+.preview-filter-inline-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 320px);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.preview-filter-inline-grid-value {
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 220px) minmax(220px, 1fr);
+  grid-template-areas: 'key operator value';
+  column-gap: 12px;
+  align-items: end;
+}
+
+.preview-filter-inline-grid-value .preview-inline-field {
+  min-width: 0;
+}
+
+.preview-filter-inline-grid-value .preview-inline-field-key {
+  grid-area: key;
+}
+
+.preview-filter-inline-grid-value .preview-inline-field-operator {
+  grid-area: operator;
+}
+
+.preview-filter-inline-grid-value .preview-inline-field-value {
+  grid-area: value;
+}
+
+.preview-query-field {
+  margin-top: 10px;
+}
+
+.preview-filter-error {
+  margin-top: 8px;
+  text-align: left;
+  color: #fca5a5;
 }
 
 .connection-action-row {
@@ -3227,6 +4777,25 @@ body {
   font-size: 0.85rem;
 }
 
+.sample-item-selected {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.sample-item-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #052e16;
+  background: #22c55e;
+}
+
 .sample-item pre {
   margin: 0;
   white-space: pre-wrap;
@@ -3264,6 +4833,35 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-bottom: 14px;
+}
+
+@media (max-width: 960px) {
+  .preview-filter-controls-grid,
+  .preview-filter-inline-grid,
+  .preview-filter-inline-grid-value {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-filter-controls-grid-with-action {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-export-field {
+    justify-content: stretch;
+  }
+
+  .preview-export-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1400px) {
+  .preview-filter-inline-grid-value {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'key operator'
+      'value value';
+  }
 }
 
 .form-card {

@@ -3,6 +3,15 @@
 Backend: FastAPI + Celery + Redis + Motor
 Frontend: Vue 3 + Pinia + Tailwind
 
+## Feature flags
+
+- Backend (`backend/.env`):
+	- `ENABLE_MONGO_TO_KEYCLOAK_MIGRATION=false` keeps Keycloak migrations in Keycloak -> Keycloak only mode.
+	- Set to `true` to re-enable MongoDB -> Keycloak migration.
+- Frontend (`frontend/.env`):
+	- `VITE_ENABLE_MONGO_TO_KEYCLOAK_MIGRATION=false` applies the same restriction in the UI.
+	- Set to `true` to show MongoDB -> Keycloak as selectable again.
+
 ## Run backend
 
 1. Install dependencies:

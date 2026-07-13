@@ -24,12 +24,31 @@ class MongoConnectionRequest(BaseModel):
     authSource: Optional[str] = None
 
 
+class PostgresConnectionRequest(BaseModel):
+    connectionString: str = Field(..., min_length=10)
+
+
+class PostgresDatabaseRequest(PostgresConnectionRequest):
+    database: str = Field(..., min_length=1)
+
+
+class PostgresTablesRequest(PostgresDatabaseRequest):
+    schemaName: Optional[str] = Field(default=None, alias="schema")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class MongoDatabaseRequest(MongoConnectionRequest):
     database: str = Field(..., min_length=1)
 
 
 class MongoCollectionRequest(MongoDatabaseRequest):
     collection: str = Field(..., min_length=1)
+    limit: int = Field(default=10, ge=1, le=500)
+    filterField: Optional[str] = None
+    filterOperator: Optional[Literal["exists", "eq", "ne", "contains", "gt", "gte", "lt", "lte"]] = None
+    filterValue: Optional[Any] = None
+    mongoQuery: Optional[Dict[str, Any]] = None
 
 
 class MongoDocumentRequest(MongoCollectionRequest):
@@ -125,6 +144,69 @@ class DbRefRule(BaseModel):
         return v
 
 
+class OrderedMappingRule(BaseModel):
+    ruleType: Literal["direct", "concat", "manual", "generated_id"]
+    targetField: str = Field(..., min_length=1)
+    targetType: Literal["auto", "string", "date", "integer"] = "auto"
+    sourceField: Optional[str] = None
+    sourceFields: Optional[List[str]] = None
+    separator: str = ""
+    manualValue: Optional[Any] = None
+    dbRefCollection: Optional[str] = None
+    dbRefForeignField: Optional[str] = "_id"
+
+    @field_validator("targetField")
+    @classmethod
+    def validate_target_field(cls, v: str) -> str:
+        if _path_has_dollar_segment(v):
+            raise ValueError("targetField cannot contain segments starting with '$'")
+        return v
+
+    @field_validator("sourceField")
+    @classmethod
+    def validate_source_field(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not v.strip() or _path_has_dollar_segment(v):
+            raise ValueError("sourceField cannot be empty or contain segments starting with '$'")
+        return v.strip()
+
+    @field_validator("sourceFields")
+    @classmethod
+    def validate_source_fields(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        if len(v) != 2:
+            raise ValueError("sourceFields must contain exactly two fields")
+        cleaned: List[str] = []
+        for path in v:
+            if not path or _path_has_dollar_segment(path):
+                raise ValueError("sourceFields paths cannot be empty or contain segments starting with '$'")
+            cleaned.append(path)
+        return cleaned
+
+    @field_validator("dbRefForeignField")
+    @classmethod
+    def validate_dbref_foreign_field(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not v.strip() or _path_has_dollar_segment(v):
+            raise ValueError("dbRefForeignField cannot be empty or contain segments starting with '$'")
+        return v.strip()
+
+    @model_validator(mode="after")
+    def validate_by_type(self):
+        if self.ruleType == "direct" and not self.sourceField:
+            raise ValueError("sourceField is required when ruleType is 'direct'")
+        if self.ruleType == "concat" and not self.sourceFields:
+            raise ValueError("sourceFields is required when ruleType is 'concat'")
+        if self.ruleType == "manual" and self.manualValue is None:
+            raise ValueError("manualValue is required when ruleType is 'manual'")
+        if self.ruleType == "generated_id" and self.targetField != "_id":
+            raise ValueError("generated_id rule must target '_id'")
+        return self
+
+
 class MigrationConfig(BaseModel):
     migrationName: str = Field(..., min_length=1)
     source: MongoConnectionInfo
@@ -133,6 +215,7 @@ class MigrationConfig(BaseModel):
     fieldMapping: Dict[str, str]
     manualMapping: Dict[str, Any] = {}
     concatRules: List[ConcatRule] = []
+    orderedRules: List[OrderedMappingRule] = []
     dbRefRules: List[DbRefRule] = []
     mergeByField: Optional[str] = None
     lookups: List[LookupConfig] = []
@@ -174,8 +257,9 @@ class MigrationConfig(BaseModel):
         field_mapping = info.data.get("fieldMapping") or {}
         manual_mapping = info.data.get("manualMapping") or {}
         concat_rules = info.data.get("concatRules") or []
-        if not field_mapping and not manual_mapping and not concat_rules:
-            raise ValueError("At least one field mapping, manual mapping, or concat rule is required")
+        ordered_rules = info.data.get("orderedRules") or []
+        if not field_mapping and not manual_mapping and not concat_rules and not ordered_rules:
+            raise ValueError("At least one field mapping, manual mapping, concat rule, or ordered rule is required")
         return v
 
 
@@ -187,6 +271,7 @@ class TemplatePayload(BaseModel):
     fieldMapping: Dict[str, str]
     manualMapping: Dict[str, Any] = {}
     concatRules: List[ConcatRule] = []
+    orderedRules: List[OrderedMappingRule] = []
     dbRefRules: List[DbRefRule] = []
     mergeByField: Optional[str] = None
     lookups: List[LookupConfig] = []

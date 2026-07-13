@@ -10,4 +10,11 @@ backend/yggdrasil_migrator.egg-info/dependency_links.txt
 backend/yggdrasil_migrator.egg-info/requires.txt
 backend/yggdrasil_migrator.egg-info/top_level.txt
 tests/test_bson_serialization.py
+tests/test_exploration_filters.py
+tests/test_keycloak_feature_flags.py
+tests/test_keycloak_schema.py
+tests/test_keycloak_service.py
 tests/test_migration_service.py
+tests/test_postgres_service.py
+tests/test_template_schema.py
+tests/test_templates_repository.py

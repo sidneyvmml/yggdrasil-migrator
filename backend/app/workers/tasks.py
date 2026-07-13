@@ -6,7 +6,7 @@ from celery import Task
 from app.config import settings
 from app.db import SqliteRepository
 from app.schemas.common import MigrationConfig
-from app.schemas.keycloak import KeycloakMigrationConfig
+from app.schemas.keycloak import KeycloakMigrationConfig, MongoToKeycloakMigrationConfig
 from app.services.keycloak_service import KeycloakService
 from app.services.migration_service import MigrationService
 from app.services.mongo_client import MongoClientFactory
@@ -130,7 +130,7 @@ def execute_keycloak_migration_job(self, config_dict: Dict[str, Any], max_docume
     job_id = self.request.id
     SqliteRepository.update_job_status(job_id, "loading_source", progress=5)
 
-    config = KeycloakMigrationConfig.model_validate(config_dict)
+    migration_type = config_dict.get("migrationType")
 
     async def _run():
         SqliteRepository.update_job_status(job_id, "mapping_fields", progress=15)
@@ -138,8 +138,23 @@ def execute_keycloak_migration_job(self, config_dict: Dict[str, Any], max_docume
         def _on_progress(progress: int):
             SqliteRepository.update_job_status(job_id, "inserting_documents", progress=progress)
 
+        if migration_type == "mongo_to_keycloak":
+            if not settings.enable_mongo_to_keycloak_migration:
+                raise Exception(
+                    "MongoDB -> Keycloak migration is temporarily disabled. "
+                    "Set ENABLE_MONGO_TO_KEYCLOAK_MIGRATION=true to enable it."
+                )
+            mongo_config = MongoToKeycloakMigrationConfig.model_validate(config_dict)
+            return await KeycloakService.run_mongo_source_update(
+                mongo_config,
+                max_documents=max_documents,
+                timeout_ms=settings.mongodb_connect_timeout_ms,
+                progress_callback=_on_progress,
+            )
+
+        keycloak_config = KeycloakMigrationConfig.model_validate(config_dict)
         return await KeycloakService.run_migration(
-            config,
+            keycloak_config,
             max_documents=max_documents,
             timeout_ms=settings.mongodb_connect_timeout_ms,
             progress_callback=_on_progress,

@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
+from app.config import settings
 from app.db import SqliteRepository
 from app.schemas.keycloak import (
     KeycloakExecuteRequest,
@@ -17,6 +18,21 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _ensure_mongo_to_keycloak_enabled(config_payload: dict) -> None:
+    if config_payload.get("migrationType") != "mongo_to_keycloak":
+        return
+    if settings.enable_mongo_to_keycloak_migration:
+        return
+
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "MongoDB -> Keycloak migration is temporarily disabled. "
+            "Set ENABLE_MONGO_TO_KEYCLOAK_MIGRATION=true to enable it."
+        ),
+    )
+
+
 @router.post("/validate")
 async def validate_connection(payload: KeycloakValidateRequest):
     try:
@@ -29,8 +45,17 @@ async def validate_connection(payload: KeycloakValidateRequest):
 @router.post("/users")
 async def list_users(payload: KeycloakUsersRequest):
     try:
-        items = await KeycloakService.list_users(payload, first=0, max_items=payload.limit)
-        return {"items": items}
+        items, has_more = await KeycloakService.list_users_page(
+            payload,
+            first=payload.first,
+            max_items=payload.limit,
+            filter_mode=payload.filterMode,
+            filter_field=payload.filterField,
+            filter_operator=payload.filterOperator,
+            filter_value=payload.filterValue,
+        )
+        next_first = payload.first + payload.limit if has_more else None
+        return {"items": items, "hasMore": has_more, "nextFirst": next_first}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to list Keycloak users: {exc}") from exc
 
@@ -48,6 +73,7 @@ async def preview_migration(payload: KeycloakPreviewRequest):
 def execute_migration(payload: KeycloakExecuteRequest):
     try:
         config_payload = payload.config.model_dump()
+        _ensure_mongo_to_keycloak_enabled(config_payload)
         job = execute_keycloak_migration_job.apply_async(args=[config_payload, payload.maxDocuments])
         SqliteRepository.create_job(job.id, status="pending", config=config_payload, max_documents=payload.maxDocuments)
         return {"jobId": job.id, "status": "pending"}

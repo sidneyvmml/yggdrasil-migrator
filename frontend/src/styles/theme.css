@@ -180,6 +180,39 @@ small,
 }
 
 /* Buttons */
+button:not(:disabled) {
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+button:not(:disabled):hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button.btn-primary:not(:disabled):hover,
+button.wizard-primary:not(:disabled):hover,
+button.primary-button:not(:disabled):hover {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  border-color: rgba(34, 197, 94, 0.7);
+  color: #03210f;
+}
+
+button.btn-secondary:not(:disabled):hover,
+button.wizard-secondary:not(:disabled):hover,
+button.pagination-button:not(:disabled):hover {
+  background-color: #1e293b;
+  border-color: #64748b;
+  color: #f8fafc;
+}
+
 .primary-button,
 .wizard-secondary,
 .pagination-button {
@@ -249,4 +282,487 @@ small,
 .job-status.failed {
   background-color: var(--color-error-bg);
   color: var(--color-error-text);
+}
+
+/* Light theme hard override for legacy scoped dark styles */
+[data-theme='light'] .panel,
+[data-theme='light'] .card,
+[data-theme='light'] .form-card,
+[data-theme='light'] .connection-form,
+[data-theme='light'] .engine-card,
+[data-theme='light'] .jobs-list-container .card,
+[data-theme='light'] .job-card,
+[data-theme='light'] .wizard-card,
+[data-theme='light'] .wizard-modal,
+[data-theme='light'] .engines-path-card,
+[data-theme='light'] .engines-available-card,
+[data-theme='light'] .dashboard-metric-card,
+[data-theme='light'] .dashboard-active-card,
+[data-theme='light'] .dashboard-health-card,
+[data-theme='light'] .dashboard-jobs-card,
+[data-theme='light'] .dashboard-issues-card,
+[data-theme='light'] .dashboard-actions-card {
+  background: var(--gradient-card) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme='light'] .dashboard-kpi-grid > div,
+[data-theme='light'] .dashboard-health-list li,
+[data-theme='light'] .wizard-conn-card,
+[data-theme='light'] .wizard-field-list,
+[data-theme='light'] .wizard-field-row,
+[data-theme='light'] .wizard-table-wrap,
+[data-theme='light'] .wizard-code,
+[data-theme='light'] .wizard-inline-code,
+[data-theme='light'] .job-step,
+[data-theme='light'] .job-result,
+[data-theme='light'] .jobs-controls .form-select,
+[data-theme='light'] .pagination-controls .form-select,
+[data-theme='light'] .pagination-button,
+[data-theme='light'] .engine-action-button,
+[data-theme='light'] .engine-brand-logo,
+[data-theme='light'] .engine-brand-glyph,
+[data-theme='light'] input[type='text'],
+[data-theme='light'] input[type='password'],
+[data-theme='light'] input[type='email'],
+[data-theme='light'] input[type='number'],
+[data-theme='light'] select,
+[data-theme='light'] textarea {
+  background: var(--color-bg-primary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .dashboard-table th,
+[data-theme='light'] .dashboard-table td,
+[data-theme='light'] .wizard-table th,
+[data-theme='light'] .wizard-table td,
+[data-theme='light'] .job-footer,
+[data-theme='light'] .jobs-pagination,
+[data-theme='light'] .jobs-footer,
+[data-theme='light'] .wizard-modal-footer,
+[data-theme='light'] .wizard-table-header,
+[data-theme='light'] .wizard-field-row,
+[data-theme='light'] .global-main-header {
+  border-color: var(--color-border) !important;
+}
+
+[data-theme='light'] .global-shell,
+[data-theme='light'] .global-main,
+[data-theme='light'] .wizard-shell,
+[data-theme='light'] #app {
+  background: var(--gradient-bg) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme='light'] .dashboard-label,
+[data-theme='light'] .dashboard-flow,
+[data-theme='light'] .dashboard-progress-text,
+[data-theme='light'] .engine-selector-description,
+[data-theme='light'] .engine-card small,
+[data-theme='light'] .job-progress-text,
+[data-theme='light'] .pagination-info,
+[data-theme='light'] .pagination-text,
+[data-theme='light'] small,
+[data-theme='light'] .wizard-code .ln,
+[data-theme='light'] .wizard-empty-state,
+[data-theme='light'] .connection-message,
+[data-theme='light'] label,
+[data-theme='light'] .stepper-step,
+[data-theme='light'] .global-nav-item,
+[data-theme='light'] .global-user,
+[data-theme='light'] .global-env {
+  color: var(--color-text-muted) !important;
+}
+
+[data-theme='light'] .wizard-secondary,
+[data-theme='light'] .primary-button.secondary,
+[data-theme='light'] .theme-switcher {
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .wizard-secondary:hover:not(:disabled),
+[data-theme='light'] .primary-button.secondary:hover:not(:disabled),
+[data-theme='light'] .pagination-button:hover:not(:disabled),
+[data-theme='light'] .engine-action-button:hover:not(:disabled) {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border-hover) !important;
+}
+
+[data-theme='light'] .wizard-search,
+[data-theme='light'] .wizard-select,
+[data-theme='light'] .form-select,
+[data-theme='light'] .connection-form select,
+[data-theme='light'] .connection-form input {
+  background: var(--color-bg-primary) !important;
+  color: var(--color-text-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme='light'] .wizard-code,
+[data-theme='light'] pre,
+[data-theme='light'] code {
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .wizard-modal-backdrop {
+  background: rgba(15, 23, 42, 0.26) !important;
+}
+
+/* Light mode: high-contrast status badges in Dashboard Recent Migration Jobs */
+[data-theme='light'] .dashboard-table .wizard-status {
+  border: 1px solid transparent !important;
+  font-weight: 800 !important;
+}
+
+[data-theme='light'] .dashboard-table .wizard-status.valid {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #4ade80 !important;
+}
+
+[data-theme='light'] .dashboard-table .wizard-status.optional {
+  background: #dbeafe !important;
+  color: #1e3a8a !important;
+  border-color: #60a5fa !important;
+}
+
+[data-theme='light'] .dashboard-table .wizard-status.warn {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #f59e0b !important;
+}
+
+/* Light mode: Migration Path target card should use solid fill instead of dark gradient */
+[data-theme='light'] .engine-selected-card.target {
+  background: #16a34a !important;
+  border-color: #15803d !important;
+  box-shadow: 0 0 0 1px rgba(21, 128, 61, 0.28) inset !important;
+}
+
+[data-theme='light'] .engine-selected-card.target p,
+[data-theme='light'] .engine-selected-card.target small,
+[data-theme='light'] .engine-selected-card.target h4 {
+  color: #f8fafc !important;
+}
+
+/* Stronger Source/Target badge emphasis */
+.engine-role-badge {
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.32) !important;
+}
+
+.engine-role-badge.source {
+  background: #0891b2 !important;
+  border-color: #06b6d4 !important;
+  color: #f0f9ff !important;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35) inset, 0 8px 18px rgba(6, 182, 212, 0.34) !important;
+}
+
+.engine-role-badge.target {
+  background: #15803d !important;
+  border-color: #22c55e !important;
+  color: #f0fdf4 !important;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28) inset, 0 8px 18px rgba(34, 197, 94, 0.34) !important;
+}
+
+[data-theme='light'] .engine-role-badge {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14) !important;
+}
+
+[data-theme='light'] .engine-role-badge.source {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.24) !important;
+}
+
+[data-theme='light'] .engine-role-badge.target {
+  background: #15803d !important;
+  border-color: #166534 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.24) !important;
+}
+
+/* Light mode: improve contrast for "Available" and "Coming soon" badges */
+[data-theme='light'] .wizard-status.valid {
+  background: #15803d !important;
+  border: 1px solid #166534 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme='light'] .wizard-status.warn {
+  background: #d97706 !important;
+  border: 1px solid #b45309 !important;
+  color: #fffbeb !important;
+}
+
+/* Light mode: Keycloak-only badge with red-compatible emphasis */
+[data-theme='light'] .engine-title-with-badge .engine-badge {
+  background: #fee2e2 !important;
+  border: 1px solid #fca5a5 !important;
+  color: #991b1b !important;
+  box-shadow: 0 1px 4px rgba(153, 27, 27, 0.12) !important;
+}
+
+/* Light mode: keep selected engine actions highly visible */
+[data-theme='light'] .engine-action-button.active,
+[data-theme='light'] .engine-action-button.active.source,
+[data-theme='light'] .engine-action-button.active.target {
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+  border-width: 1px !important;
+}
+
+[data-theme='light'] .engine-action-button.active.source {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  box-shadow: 0 8px 18px rgba(2, 132, 199, 0.35) !important;
+}
+
+[data-theme='light'] .engine-action-button.active.target {
+  background: #16a34a !important;
+  border-color: #15803d !important;
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.35) !important;
+}
+
+/* Light mode: boost contrast of primary actions such as Test Connection */
+[data-theme='light'] .primary-button,
+[data-theme='light'] .connection-form .primary-button,
+[data-theme='light'] .wizard-primary {
+  background: #15803d !important;
+  border-color: #166534 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 6px 14px rgba(22, 101, 52, 0.28) !important;
+}
+
+[data-theme='light'] .primary-button:hover:not(:disabled),
+[data-theme='light'] .connection-form .primary-button:hover:not(:disabled),
+[data-theme='light'] .wizard-primary:hover:not(:disabled) {
+  background: #166534 !important;
+  border-color: #14532d !important;
+}
+
+[data-theme='light'] .primary-button:disabled,
+[data-theme='light'] .connection-form .primary-button:disabled,
+[data-theme='light'] .wizard-primary:disabled {
+  opacity: 0.58 !important;
+  box-shadow: none !important;
+}
+
+/* Light mode: New Migration mapping screen cleanup */
+[data-theme='light'] .wizard-panel,
+[data-theme='light'] .wizard-shell,
+[data-theme='light'] .wizard-main {
+  background: var(--gradient-bg) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme='light'] .wizard-main {
+  background-image: none !important;
+}
+
+[data-theme='light'] .wizard-header p,
+[data-theme='light'] .wizard-conn-arrow,
+[data-theme='light'] .wizard-conn-card span,
+[data-theme='light'] .wizard-table th,
+[data-theme='light'] .wizard-checklist {
+  color: var(--color-text-muted) !important;
+}
+
+[data-theme='light'] .wizard-table td,
+[data-theme='light'] .wizard-field-name,
+[data-theme='light'] .wizard-modal-label,
+[data-theme='light'] .wizard-rule-mode-toggle label,
+[data-theme='light'] .wizard-rule-mode-toggle-label,
+[data-theme='light'] .wizard-code,
+[data-theme='light'] .wizard-inline-code {
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .wizard-action-icon,
+[data-theme='light'] .wizard-remove-button {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+[data-theme='light'] .wizard-action-icon:hover:not(:disabled),
+[data-theme='light'] .wizard-remove-button:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+}
+
+[data-theme='light'] .wizard-remove-button {
+  color: #b91c1c !important;
+}
+
+[data-theme='light'] .wizard-action-icon:disabled,
+[data-theme='light'] .wizard-remove-button:disabled {
+  opacity: 0.45 !important;
+}
+
+/* Light mode: Stepper contrast and visibility */
+[data-theme='light'] .stepper-track {
+  background: #cbd5e1 !important;
+}
+
+[data-theme='light'] .stepper-fill {
+  background: linear-gradient(90deg, #16a34a, #0284c7) !important;
+}
+
+[data-theme='light'] .stepper-step {
+  color: #64748b !important;
+}
+
+[data-theme='light'] .stepper-step:hover:not(:disabled) {
+  background: rgba(2, 132, 199, 0.08) !important;
+  color: #0f172a !important;
+}
+
+[data-theme='light'] .stepper-step .step-number {
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #334155 !important;
+}
+
+[data-theme='light'] .stepper-step.active .step-number {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
+}
+
+[data-theme='light'] .stepper-step.completed .step-number {
+  background: #16a34a !important;
+  border-color: #15803d !important;
+  color: #f8fafc !important;
+}
+
+[data-theme='light'] .stepper-step.active .step-label {
+  color: #0c4a6e !important;
+  font-weight: 700 !important;
+}
+
+[data-theme='light'] .stepper-step.completed .step-label {
+  color: #166534 !important;
+  font-weight: 700 !important;
+}
+
+/* Light mode: Review/Preview section explicit cleanup */
+[data-theme='light'] .preview-panel,
+[data-theme='light'] .preview-header-enterprise,
+[data-theme='light'] .preview-stage,
+[data-theme='light'] .preview-card,
+[data-theme='light'] .preview-actions {
+  background: var(--gradient-card) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme='light'] .preview-card::before {
+  opacity: 0.38 !important;
+}
+
+[data-theme='light'] .preview-header p,
+[data-theme='light'] .preview-actions p,
+[data-theme='light'] .preview-warning-text,
+[data-theme='light'] .preview-merge-toggle {
+  color: var(--color-text-muted) !important;
+}
+
+[data-theme='light'] .preview-field-row,
+[data-theme='light'] .preview-field-row.source-row,
+[data-theme='light'] .preview-field-row.mapped-row,
+[data-theme='light'] .preview-field-row.manual-row {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme='light'] .preview-field-name,
+[data-theme='light'] .preview-field-value {
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .preview-field-tag.mapped {
+  background: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+
+[data-theme='light'] .preview-field-tag.manual {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+/* Light mode: Jobs section explicit cleanup */
+[data-theme='light'] .jobs-header,
+[data-theme='light'] .jobs-grid,
+[data-theme='light'] .job-card,
+[data-theme='light'] .jobs-pagination,
+[data-theme='light'] .jobs-footer,
+[data-theme='light'] .job-result {
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme='light'] .job-card,
+[data-theme='light'] .jobs-list-container .card {
+  background: var(--gradient-card) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme='light'] .jobs-controls .form-select,
+[data-theme='light'] .job-progress-track,
+[data-theme='light'] .job-step,
+[data-theme='light'] .job-result,
+[data-theme='light'] .pagination-button {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .job-progress-track {
+  background: #e2e8f0 !important;
+}
+
+[data-theme='light'] .job-step.active {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+}
+
+[data-theme='light'] .job-step.done {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+}
+
+[data-theme='light'] .job-step-label,
+[data-theme='light'] .job-result p,
+[data-theme='light'] .job-footer small,
+[data-theme='light'] .job-progress-text,
+[data-theme='light'] .pagination-info,
+[data-theme='light'] .pagination-text {
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme='light'] .job-status.pending,
+[data-theme='light'] .job-status.loading_source,
+[data-theme='light'] .job-status.mapping_fields,
+[data-theme='light'] .job-status.inserting_documents {
+  background: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+
+[data-theme='light'] .job-status.done {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+[data-theme='light'] .job-status.failed {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
 }

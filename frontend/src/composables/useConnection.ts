@@ -146,6 +146,37 @@ export function useConnection() {
   }
 
   /**
+   * Valida conexão PostgreSQL
+   */
+  const testPostgresConnection = async (
+    connection: MongoConnectionConfig & ConnectionStatus
+  ): Promise<void> => {
+    connection.testing = true
+    connection.status = ''
+    connection.message = ''
+
+    try {
+      const response = await apiClient.validatePostgresConnection({
+        connectionString: connection.connectionString,
+      })
+
+      if (response.data.connected) {
+        connection.status = 'success'
+        connection.message = 'Conexao valida com PostgreSQL.'
+      } else {
+        connection.status = 'error'
+        connection.message = 'Falha ao validar a conexao PostgreSQL.'
+      }
+    } catch (error: any) {
+      connection.status = 'error'
+      connection.message =
+        error.response?.data?.detail || error.message || 'Erro na conexao PostgreSQL.'
+    } finally {
+      connection.testing = false
+    }
+  }
+
+  /**
    * Carrega databases MongoDB
    */
   const loadMongoDatabases = async (connection: MongoConnectionConfig) => {
@@ -185,6 +216,57 @@ export function useConnection() {
   }
 
   /**
+   * Carrega databases PostgreSQL
+   */
+  const loadPostgresDatabases = async (connection: MongoConnectionConfig) => {
+    try {
+      const response = await apiClient.loadPostgresDatabases({
+        connectionString: connection.connectionString,
+      })
+      return response.data.databases || []
+    } catch (error) {
+      console.error('Erro ao carregar databases PostgreSQL:', error)
+      return []
+    }
+  }
+
+  /**
+   * Carrega schemas PostgreSQL
+   */
+  const loadPostgresSchemas = async (connection: MongoConnectionConfig) => {
+    try {
+      const response = await apiClient.loadPostgresSchemas({
+        connectionString: connection.connectionString,
+        database: connection.database,
+      })
+      return response.data.schemas || []
+    } catch (error) {
+      console.error('Erro ao carregar schemas PostgreSQL:', error)
+      return []
+    }
+  }
+
+  /**
+   * Carrega tabelas PostgreSQL
+   */
+  const loadPostgresTables = async (
+    connection: MongoConnectionConfig,
+    schema?: string
+  ) => {
+    try {
+      const response = await apiClient.loadPostgresTables({
+        connectionString: connection.connectionString,
+        database: connection.database,
+        schema,
+      })
+      return response.data.tables || []
+    } catch (error) {
+      console.error('Erro ao carregar tabelas PostgreSQL:', error)
+      return []
+    }
+  }
+
+  /**
    * Limpa estado de conexão
    */
   const resetConnectionState = () => {
@@ -211,9 +293,13 @@ export function useConnection() {
     keycloakConnectionSource,
     keycloakConnectionTarget,
     testMongoConnection,
+    testPostgresConnection,
     testKeycloakConnection,
     loadMongoDatabases,
     loadMongoCollections,
+    loadPostgresDatabases,
+    loadPostgresSchemas,
+    loadPostgresTables,
     resetConnectionState,
   }
 }

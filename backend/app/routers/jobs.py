@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.db import SqliteRepository
-from app.workers.tasks import execute_migration_job
+from app.workers.tasks import execute_keycloak_migration_job, execute_migration_job
 
 router = APIRouter()
 
@@ -52,7 +52,11 @@ def rerun_job(job_id: str):
 
     try:
         config_payload = _normalize_filter_rules(stored["config"])
-        job = execute_migration_job.apply_async(args=[config_payload, stored["maxDocuments"]])
+        migration_type = config_payload.get("migrationType")
+        if migration_type in {"keycloak", "mongo_to_keycloak"}:
+            job = execute_keycloak_migration_job.apply_async(args=[config_payload, stored["maxDocuments"]])
+        else:
+            job = execute_migration_job.apply_async(args=[config_payload, stored["maxDocuments"]])
         SqliteRepository.create_job(job.id, status="pending", config=config_payload, max_documents=stored["maxDocuments"])
         return {"jobId": job.id, "status": "pending"}
     except Exception as exc:
